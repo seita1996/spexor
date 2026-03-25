@@ -1,8 +1,14 @@
 {
   "name": "@spexor/web",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "bin": {
+    "spexor": "./bin/spexor.mjs"
+  },
+  "files": ["bin", "index.html", "postcss.config.cjs", "server", "src", "tailwind.config.ts", "vite.config.ts"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "concurrently -n api,web -c yellow,cyan \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:server": "node --import tsx server/index.ts",
@@ -13,10 +19,17 @@
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.1",
     "@fontsource/ibm-plex-sans": "^5.1.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "@spexor/app": "workspace:*",
     "@spexor/ui": "workspace:*",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "postcss": "^8.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.4.0"
+    "react-router-dom": "^7.4.0",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.3",
+    "vite": "^6.2.6"
   }
 }

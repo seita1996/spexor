@@ -1,7 +1,21 @@
+import fs from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Config } from "tailwindcss";
 
+const require = createRequire(import.meta.url);
+const webRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoUiPath = path.resolve(webRoot, "../../packages/ui/src");
+const installedUiPackage = resolvePackageSource("@spexor/ui");
+
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}", "../../packages/ui/src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{ts,tsx}",
+    ...(fs.existsSync(monorepoUiPath) ? ["../../packages/ui/src/**/*.{ts,tsx}"] : []),
+    ...(installedUiPackage ? [`${installedUiPackage}/src/**/*.{ts,tsx}`] : [])
+  ],
   theme: {
     extend: {
       colors: {
@@ -20,3 +34,11 @@ export default {
   },
   plugins: []
 } satisfies Config;
+
+function resolvePackageSource(packageName: string): string | null {
+  try {
+    return path.dirname(require.resolve(`${packageName}/package.json`));
+  } catch {
+    return null;
+  }
+}

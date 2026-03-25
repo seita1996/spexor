@@ -9,9 +9,9 @@ describe("@spexor/config", () => {
 
     const config = await loadConfig({ cwd: tempRoot });
 
-    expect(config.specDir).toBe("./examples/demo-project/specs/manual");
+    expect(config.specDir).toBe("./specs/manual");
     expect(config.dbPath).toBe("./.spexor/spexor.db");
-    expect(config.specDirAbs).toBe(path.resolve(tempRoot, "./examples/demo-project/specs/manual"));
+    expect(config.specDirAbs).toBe(path.resolve(tempRoot, "./specs/manual"));
   });
 
   it("loads a custom spexor.config.ts file", async () => {

@@ -19,7 +19,7 @@ export interface ResolvedSpexorConfig extends SpexorConfig {
 }
 
 const defaultConfig: SpexorConfig = {
-  specDir: "./examples/demo-project/specs/manual",
+  specDir: "./specs/manual",
   dbPath: "./.spexor/spexor.db",
   evidenceDir: "./.spexor/evidence",
   autoScan: true

@@ -9,7 +9,9 @@
     "build": "pnpm --filter @spexor/web build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release:check": "pnpm typecheck && pnpm test && pnpm build",
+    "release:publish": "pnpm -r publish --access public --no-git-checks --report-summary"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

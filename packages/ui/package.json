@@ -1,8 +1,11 @@
 {
   "name": "@spexor/ui",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "files": ["src"],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

@@ -40,6 +40,22 @@ pnpm dev
 
 Then open the local Vite URL shown in the terminal. The default `spexor.config.ts` points at the bundled demo specs under `examples/demo-project/specs/manual`.
 
+## Use from another project
+
+Install Spexor into the project you want to manage:
+
+```bash
+npm install -D @spexor/web
+```
+
+Then run:
+
+```bash
+npx spexor dev
+```
+
+If the target project has no config yet, Spexor defaults to `./specs/manual`, `./.spexor/spexor.db`, and `./.spexor/evidence` relative to that project root.
+
 ## Add your own specs
 
 1. Create or update `spexor.config.ts`.
