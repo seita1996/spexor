@@ -1,0 +1,22 @@
+{
+  "name": "@spexor/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"pnpm run dev:server\" \"pnpm run dev:client\"",
+    "dev:server": "node --import tsx server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.1.1",
+    "@fontsource/ibm-plex-sans": "^5.1.1",
+    "@spexor/app": "workspace:*",
+    "@spexor/ui": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.4.0"
+  }
+}

@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --spexor-sand: #f7f3e8;
+  --spexor-ink: #0f172a;
+  --spexor-teal: #0f766e;
+  --spexor-rust: #b45309;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Avenir Next", sans-serif;
+  color: var(--spexor-ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 30%),
+    radial-gradient(circle at top right, rgba(180, 83, 9, 0.1), transparent 28%),
+    linear-gradient(180deg, #fbfaf6 0%, #f3efe4 100%);
+}
+
+code,
+pre {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+a {
+  color: inherit;
+}

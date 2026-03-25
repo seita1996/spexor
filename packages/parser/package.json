@@ -1,0 +1,19 @@
+{
+  "name": "@spexor/parser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cucumber/gherkin": "^31.0.0",
+    "@cucumber/messages": "^27.0.2",
+    "@spexor/domain": "workspace:*",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.24.2"
+  }
+}
