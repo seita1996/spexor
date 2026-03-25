@@ -1,10 +1,11 @@
 import http from "node:http";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSpexorApp, type RecordScenarioResultInput } from "@spexor/app";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
-const workspaceRoot = path.resolve(serverDir, "../..");
+const workspaceRoot = findWorkspaceRoot(serverDir);
 const port = Number(process.env.SPEXOR_API_PORT ?? 4318);
 
 const spexor = await createSpexorApp({ rootDir: workspaceRoot });
@@ -105,4 +106,24 @@ function writeJson(response: http.ServerResponse, status: number, body: unknown)
     "Content-Type": "application/json; charset=utf-8"
   });
   response.end(JSON.stringify(body));
+}
+
+function findWorkspaceRoot(startDir: string): string {
+  let currentDir = startDir;
+
+  while (true) {
+    if (
+      fs.existsSync(path.join(currentDir, "pnpm-workspace.yaml")) &&
+      fs.existsSync(path.join(currentDir, "spexor.config.ts"))
+    ) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return path.resolve(startDir, "../../..");
+    }
+
+    currentDir = parentDir;
+  }
 }
