@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import {
+  DatabaseSync,
+  type SQLInputValue,
+  type StatementSync
+} from "node:sqlite";
 import {
   type EvidenceRef,
   expandFeatureCases,
@@ -98,7 +102,74 @@ export interface SpexorDatabase {
   recordScenarioRun(input: RecordScenarioRunInput): ScenarioHistoryEntry;
 }
 
-type RawRow = Record<string, unknown>;
+interface SpecFileRow {
+  relative_path: unknown;
+  absolute_path: unknown;
+  content_hash: unknown;
+  parse_health: unknown;
+  issue_count: unknown;
+  issues_json: unknown;
+  display_title: unknown;
+  scanned_at: unknown;
+  is_active: unknown;
+}
+
+interface FeatureRow {
+  feature_key: unknown;
+  spec_relative_path: unknown;
+  feature_title: unknown;
+  display_title: unknown;
+  description: unknown;
+  metadata_json: unknown;
+  background_json: unknown;
+  source_line: unknown;
+  parse_health: unknown;
+  issue_count: unknown;
+  is_active: unknown;
+  synced_at: unknown;
+}
+
+interface ScenarioRow {
+  scenario_key: unknown;
+  feature_key: unknown;
+  group_key: unknown;
+  group_title: unknown;
+  title: unknown;
+  description: unknown;
+  kind: unknown;
+  group_kind: unknown;
+  outline_title: unknown;
+  example_name: unknown;
+  example_index: unknown;
+  example_values_json: unknown;
+  steps_json: unknown;
+  tags_json: unknown;
+  source_line: unknown;
+  sort_order: unknown;
+  is_active: unknown;
+  synced_at: unknown;
+}
+
+interface LatestResultRow {
+  result_id: unknown;
+  run_id: unknown;
+  scenario_key: unknown;
+  status: unknown;
+  notes: unknown;
+  created_at: unknown;
+  tester_name: unknown;
+  browser: unknown;
+  platform: unknown;
+}
+
+interface AttachmentRow {
+  run_result_id: unknown;
+  kind: unknown;
+  value: unknown;
+  label: unknown;
+}
+
+type SpecOverviewRow = SpecFileRow & { scenario_count: unknown };
 
 const schema = `
   CREATE TABLE IF NOT EXISTS spec_files (
@@ -347,7 +418,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         ORDER BY rr.created_at DESC
         LIMIT ?
       `)
-      .all(scenarioKey, limit) as RawRow[];
+      .all(scenarioKey, limit) as unknown as LatestResultRow[];
 
     const attachmentMap = getAttachmentsForResultIds(
       database,
@@ -376,13 +447,13 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .prepare(
           "SELECT * FROM spec_files WHERE is_active = 1 ORDER BY relative_path"
         )
-        .all() as RawRow[];
+        .all() as unknown as SpecFileRow[];
       return rows.map(toSpecFileRecord);
     },
     getSpecFile(relativePath) {
       const row = database
         .prepare("SELECT * FROM spec_files WHERE relative_path = ? LIMIT 1")
-        .get(relativePath) as RawRow | undefined;
+        .get(relativePath) as unknown as SpecFileRow | undefined;
       return row ? toSpecFileRecord(row) : null;
     },
     getFeature(relativePath) {
@@ -390,7 +461,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .prepare(
           "SELECT * FROM features WHERE feature_key = ? AND is_active = 1 LIMIT 1"
         )
-        .get(relativePath) as RawRow | undefined;
+        .get(relativePath) as unknown as FeatureRow | undefined;
       return row ? toFeatureRecord(row) : null;
     },
     getSpecsOverview() {
@@ -403,7 +474,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           GROUP BY sf.relative_path
           ORDER BY sf.relative_path
         `)
-        .all() as RawRow[];
+        .all() as unknown as SpecOverviewRow[];
 
       return rows.map((row) => ({
         ...toSpecFileRecord(row),
@@ -415,13 +486,13 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .prepare(
           "SELECT * FROM scenarios WHERE feature_key = ? AND is_active = 1 ORDER BY sort_order ASC"
         )
-        .all(relativePath) as RawRow[];
+        .all(relativePath) as unknown as ScenarioRow[];
       return rows.map(toScenarioRecord);
     },
     getScenario(scenarioKey) {
       const row = database
         .prepare("SELECT * FROM scenarios WHERE scenario_key = ? LIMIT 1")
-        .get(scenarioKey) as RawRow | undefined;
+        .get(scenarioKey) as unknown as ScenarioRow | undefined;
       return row ? toScenarioRecord(row) : null;
     },
     getFeatureLatestResults(relativePath) {
@@ -450,7 +521,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           WHERE s.feature_key = ? AND s.is_active = 1 AND rr.id IS NOT NULL
           ORDER BY s.sort_order ASC
         `)
-        .all(relativePath) as RawRow[];
+        .all(relativePath) as unknown as LatestResultRow[];
 
       const attachmentMap = getAttachmentsForResultIds(
         database,
@@ -518,15 +589,22 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         }
       });
 
-      return getScenarioRunHistory(input.scenarioKey, 1)[0]!;
+      const [latestRecord] = getScenarioRunHistory(input.scenarioKey, 1);
+      if (!latestRecord) {
+        throw new Error(
+          `Failed to load recorded scenario run: ${input.scenarioKey}`
+        );
+      }
+
+      return latestRecord;
     }
   };
 }
 
 function saveFeatureSnapshot(
-  database: any,
-  upsertFeature: any,
-  upsertScenario: any,
+  database: DatabaseSync,
+  upsertFeature: StatementSync,
+  upsertScenario: StatementSync,
   feature: FeatureSpec,
   issueCount: number,
   parseHealth: string,
@@ -607,7 +685,7 @@ function buildScenarioInsertRecord(
   scenario: FeatureSpec["scenarios"][number],
   scenarioCase: ScenarioCaseSpec,
   sortOrder: number
-): Record<string, unknown> {
+): Record<string, SQLInputValue> {
   return {
     scenario_key: scenarioCase.id,
     feature_key: featureKey,
@@ -644,7 +722,7 @@ function getDisplayTitle(parsedFile: ParsedSpecFile): string {
 }
 
 function getAttachmentsForResultIds(
-  database: any,
+  database: DatabaseSync,
   resultIds: string[]
 ): Map<string, EvidenceRef[]> {
   const attachmentMap = new Map<string, EvidenceRef[]>();
@@ -659,7 +737,7 @@ function getAttachmentsForResultIds(
        WHERE run_result_id IN (${resultIds.map(() => "?").join(", ")})
        ORDER BY created_at ASC`
     )
-    .all(...resultIds) as RawRow[];
+    .all(...resultIds) as unknown as AttachmentRow[];
 
   for (const row of rows) {
     const runResultId = String(row.run_result_id);
@@ -676,7 +754,7 @@ function getAttachmentsForResultIds(
 }
 
 function toLatestResultRecord(
-  row: RawRow,
+  row: LatestResultRow,
   attachments: EvidenceRef[]
 ): LatestScenarioResult {
   return {
@@ -693,7 +771,7 @@ function toLatestResultRecord(
   };
 }
 
-function toSpecFileRecord(row: RawRow): SpecFileRecord {
+function toSpecFileRecord(row: SpecFileRow): SpecFileRecord {
   return {
     relativePath: String(row.relative_path),
     absolutePath: String(row.absolute_path),
@@ -707,7 +785,7 @@ function toSpecFileRecord(row: RawRow): SpecFileRecord {
   };
 }
 
-function toFeatureRecord(row: RawRow): FeatureRecord {
+function toFeatureRecord(row: FeatureRow): FeatureRecord {
   return {
     featureKey: String(row.feature_key),
     specRelativePath: String(row.spec_relative_path),
@@ -724,7 +802,7 @@ function toFeatureRecord(row: RawRow): FeatureRecord {
   };
 }
 
-function toScenarioRecord(row: RawRow): ScenarioRecord {
+function toScenarioRecord(row: ScenarioRow): ScenarioRecord {
   return {
     scenarioKey: String(row.scenario_key),
     featureKey: String(row.feature_key),

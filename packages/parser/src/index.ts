@@ -165,6 +165,16 @@ function parseMetadataObject(
   filePath: string,
   issues: ParseIssue[]
 ): FeatureMetadata {
+  type LooseFrontmatterShape = Record<string, unknown> & {
+    title?: unknown;
+    browsers?: unknown;
+    platforms?: unknown;
+    tags?: unknown;
+    priority?: unknown;
+    owner?: unknown;
+    related?: unknown;
+  };
+
   const fallbackMetadata: FeatureMetadata = {
     browsers: [],
     platforms: [],
@@ -211,7 +221,7 @@ function parseMetadataObject(
       .join("; ")
   });
 
-  const value = rawData as Record<string, unknown>;
+  const value = rawData as LooseFrontmatterShape;
   return {
     title: typeof value.title === "string" ? value.title : undefined,
     browsers: Array.isArray(value.browsers)

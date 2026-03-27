@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { createSpexorApp, type RecordScenarioResultInput } from "@spexor/app";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot =
-  process.env.SPEXOR_PROJECT_ROOT || findWorkspaceRoot(serverDir);
-const port = Number(process.env.SPEXOR_API_PORT ?? 4318);
+const { SPEXOR_PROJECT_ROOT, SPEXOR_API_PORT } = process.env;
+const projectRoot = SPEXOR_PROJECT_ROOT || findWorkspaceRoot(serverDir);
+const port = Number(SPEXOR_API_PORT ?? 4318);
 
 const spexor = await createSpexorApp({ rootDir: projectRoot });
 

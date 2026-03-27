@@ -64,9 +64,13 @@ describe("@spexor/db", () => {
 
     const scenarios = database.getFeatureScenarios(parsed.relativePath);
     expect(scenarios).toHaveLength(1);
+    const [scenario] = scenarios;
+    if (!scenario) {
+      throw new Error("Expected a saved scenario.");
+    }
 
     const saved = database.recordScenarioRun({
-      scenarioKey: scenarios[0]!.scenarioKey,
+      scenarioKey: scenario.scenarioKey,
       featureKey: parsed.relativePath,
       testerName: "qa@example.com",
       status: "passed",
@@ -79,7 +83,7 @@ describe("@spexor/db", () => {
     expect(saved.status).toBe("passed");
     expect(saved.attachments).toHaveLength(1);
 
-    const history = database.getScenarioRunHistory(scenarios[0]!.scenarioKey);
+    const history = database.getScenarioRunHistory(scenario.scenarioKey);
     expect(history).toHaveLength(1);
     expect(history[0]?.testerName).toBe("qa@example.com");
 

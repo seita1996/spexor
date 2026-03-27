@@ -287,7 +287,7 @@ export async function createSpexorApp(
     },
     async recordScenarioResult(scenarioId, input) {
       const scenario = database.getScenario(scenarioId);
-      if (!scenario || !scenario.isActive) {
+      if (!scenario?.isActive) {
         throw new Error(`Scenario not found or inactive: ${scenarioId}`);
       }
 

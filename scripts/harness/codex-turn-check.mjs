@@ -1,5 +1,5 @@
-import { access } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { access } from "node:fs/promises";
 import path from "node:path";
 
 const mode = process.argv[2] ?? "worktree";
