@@ -20,7 +20,9 @@ export function FilterBar(props: {
         <input
           className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.search}
-          onChange={(event) => props.onChange({ ...props.value, search: event.target.value })}
+          onChange={(event) =>
+            props.onChange({ ...props.value, search: event.target.value })
+          }
           placeholder="Find specs, scenarios, owners, or notes"
         />
       </label>
@@ -30,7 +32,9 @@ export function FilterBar(props: {
         <select
           className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.tag}
-          onChange={(event) => props.onChange({ ...props.value, tag: event.target.value })}
+          onChange={(event) =>
+            props.onChange({ ...props.value, tag: event.target.value })
+          }
         >
           <option value="">All tags</option>
           {props.tagOptions.map((tag) => (
@@ -46,7 +50,9 @@ export function FilterBar(props: {
         <select
           className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.browser}
-          onChange={(event) => props.onChange({ ...props.value, browser: event.target.value })}
+          onChange={(event) =>
+            props.onChange({ ...props.value, browser: event.target.value })
+          }
         >
           <option value="">All browsers</option>
           {props.browserOptions.map((browser) => (

@@ -1,19 +1,37 @@
-import { useEffect, useState } from "react";
 import type { RecordScenarioResultInput, RunStatus } from "@spexor/app";
 import { StatusBadge } from "@spexor/ui";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "./ui/card";
 import { Input } from "./ui/input";
 import { Select } from "./ui/select";
 import { Textarea } from "./ui/textarea";
 
 interface EvidenceDraft {
+  id: string;
   kind: "file" | "url";
   value: string;
   label: string;
 }
 
 const statusOptions: RunStatus[] = ["passed", "failed", "blocked", "skipped"];
+let evidenceDraftCount = 0;
+
+function createEvidenceDraft(): EvidenceDraft {
+  evidenceDraftCount += 1;
+  return {
+    id: `evidence-${evidenceDraftCount}`,
+    kind: "file",
+    value: "",
+    label: ""
+  };
+}
 
 export function ScenarioExecutionPanel(props: {
   scenarioId: string;
@@ -29,7 +47,13 @@ export function ScenarioExecutionPanel(props: {
   const [platform, setPlatform] = useState(props.platforms[0] ?? "");
   const [status, setStatus] = useState<RunStatus>("passed");
   const [notes, setNotes] = useState("");
-  const [attachments, setAttachments] = useState<EvidenceDraft[]>([{ kind: "file", value: "", label: "" }]);
+  const [attachments, setAttachments] = useState<EvidenceDraft[]>(() => [
+    createEvidenceDraft()
+  ]);
+  const testerNameInputId = `${props.scenarioId}-tester-name`;
+  const browserInputId = `${props.scenarioId}-browser`;
+  const platformInputId = `${props.scenarioId}-platform`;
+  const notesInputId = `${props.scenarioId}-notes`;
 
   useEffect(() => {
     setTesterName("");
@@ -37,8 +61,8 @@ export function ScenarioExecutionPanel(props: {
     setPlatform(props.platforms[0] ?? "");
     setStatus("passed");
     setNotes("");
-    setAttachments([{ kind: "file", value: "", label: "" }]);
-  }, [props.browsers, props.platforms, props.scenarioId]);
+    setAttachments([createEvidenceDraft()]);
+  }, [props.browsers, props.platforms]);
 
   return (
     <form
@@ -68,15 +92,19 @@ export function ScenarioExecutionPanel(props: {
             <CardTitle className="text-lg">{props.scenarioTitle}</CardTitle>
           </div>
           <CardDescription className="leading-6">
-            Record a local manual execution. Spexor stores the result in SQLite and keeps the
-            spec itself unchanged.
+            Record a local manual execution. Spexor stores the result in SQLite
+            and keeps the spec itself unchanged.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <label className="grid gap-2 text-sm text-foreground">
+      <label
+        htmlFor={testerNameInputId}
+        className="grid gap-2 text-sm text-foreground"
+      >
         Tester name
         <Input
+          id={testerNameInputId}
           required
           value={testerName}
           onChange={(event) => setTesterName(event.target.value)}
@@ -85,9 +113,13 @@ export function ScenarioExecutionPanel(props: {
       </label>
 
       {props.browsers.length > 0 ? (
-        <label className="grid gap-2 text-sm text-foreground">
+        <label
+          htmlFor={browserInputId}
+          className="grid gap-2 text-sm text-foreground"
+        >
           Browser
           <Select
+            id={browserInputId}
             value={browser}
             onChange={(event) => setBrowser(event.target.value)}
           >
@@ -101,9 +133,13 @@ export function ScenarioExecutionPanel(props: {
       ) : null}
 
       {props.platforms.length > 0 ? (
-        <label className="grid gap-2 text-sm text-foreground">
+        <label
+          htmlFor={platformInputId}
+          className="grid gap-2 text-sm text-foreground"
+        >
           Platform
           <Select
+            id={platformInputId}
             value={platform}
             onChange={(event) => setPlatform(event.target.value)}
           >
@@ -135,9 +171,13 @@ export function ScenarioExecutionPanel(props: {
         </div>
       </fieldset>
 
-      <label className="grid gap-2 text-sm text-foreground">
+      <label
+        htmlFor={notesInputId}
+        className="grid gap-2 text-sm text-foreground"
+      >
         Notes
         <Textarea
+          id={notesInputId}
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           className="min-h-32"
@@ -147,65 +187,83 @@ export function ScenarioExecutionPanel(props: {
 
       <Card className="border-border bg-card/80 shadow-none">
         <CardContent className="grid gap-3 p-4">
-        <header className="flex items-center justify-between gap-3">
-          <div>
-            <h4 className="text-sm font-semibold text-foreground">Evidence references</h4>
-            <p className="text-xs text-muted-foreground">Store local file paths or URLs only.</p>
-          </div>
-          <Button
-            type="button"
-            onClick={() =>
-              setAttachments((current) => [...current, { kind: "file", value: "", label: "" }])
-            }
-            variant="outline"
-            size="sm"
-            className="uppercase tracking-[0.16em]"
-          >
-            Add ref
-          </Button>
-        </header>
-
-        {attachments.map((attachment, index) => (
-          <div key={`attachment-${index + 1}`} className="grid gap-2 md:grid-cols-[120px_1fr_1fr]">
-            <Select
-              value={attachment.kind}
-              onChange={(event) =>
-                setAttachments((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index
-                      ? { ...item, kind: event.target.value as EvidenceDraft["kind"] }
-                      : item
-                  )
-                )
+          <header className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">
+                Evidence references
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Store local file paths or URLs only.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() =>
+                setAttachments((current) => [...current, createEvidenceDraft()])
               }
+              variant="outline"
+              size="sm"
+              className="uppercase tracking-[0.16em]"
             >
-              <option value="file">file</option>
-              <option value="url">url</option>
-            </Select>
-            <Input
-              value={attachment.value}
-              onChange={(event) =>
-                setAttachments((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, value: event.target.value } : item
+              Add ref
+            </Button>
+          </header>
+
+          {attachments.map((attachment, index) => (
+            <div
+              key={attachment.id}
+              className="grid gap-2 md:grid-cols-[120px_1fr_1fr]"
+            >
+              <Select
+                value={attachment.kind}
+                onChange={(event) =>
+                  setAttachments((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? {
+                            ...item,
+                            kind: event.target.value as EvidenceDraft["kind"]
+                          }
+                        : item
+                    )
                   )
-                )
-              }
-              placeholder={attachment.kind === "file" ? "/tmp/screenshot.png" : "https://example.com/log"}
-            />
-            <Input
-              value={attachment.label}
-              onChange={(event) =>
-                setAttachments((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, label: event.target.value } : item
+                }
+              >
+                <option value="file">file</option>
+                <option value="url">url</option>
+              </Select>
+              <Input
+                value={attachment.value}
+                onChange={(event) =>
+                  setAttachments((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, value: event.target.value }
+                        : item
+                    )
                   )
-                )
-              }
-              placeholder="Optional label"
-            />
-          </div>
-        ))}
+                }
+                placeholder={
+                  attachment.kind === "file"
+                    ? "/tmp/screenshot.png"
+                    : "https://example.com/log"
+                }
+              />
+              <Input
+                value={attachment.label}
+                onChange={(event) =>
+                  setAttachments((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, label: event.target.value }
+                        : item
+                    )
+                  )
+                }
+                placeholder="Optional label"
+              />
+            </div>
+          ))}
         </CardContent>
       </Card>
 

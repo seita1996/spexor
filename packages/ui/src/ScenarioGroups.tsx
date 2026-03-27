@@ -39,11 +39,15 @@ export function ScenarioGroups(props: {
           <header className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-2">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-foreground">{group.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {group.title}
+                </h3>
                 <StatusBadge status={group.aggregateStatus ?? "not-run"} />
               </div>
               {group.description ? (
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{group.description}</p>
+                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {group.description}
+                </p>
               ) : null}
             </div>
             <span className="rounded-full border border-border bg-secondary px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-secondary-foreground">
@@ -64,7 +68,10 @@ export function ScenarioGroups(props: {
                         <h4 className="text-base font-semibold text-foreground">
                           {scenarioCase.title}
                         </h4>
-                        <StatusBadge status={scenarioCase.latestStatus ?? "not-run"} compact />
+                        <StatusBadge
+                          status={scenarioCase.latestStatus ?? "not-run"}
+                          compact
+                        />
                       </div>
                       {scenarioCase.description ? (
                         <p className="text-sm leading-6 text-muted-foreground">
@@ -73,14 +80,16 @@ export function ScenarioGroups(props: {
                       ) : null}
                       {scenarioCase.exampleValues ? (
                         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          {Object.entries(scenarioCase.exampleValues).map(([key, value]) => (
-                            <span
-                              key={`${scenarioCase.id}-${key}`}
-                              className="rounded-full border border-border bg-background px-3 py-1"
-                            >
-                              {key}: {value}
-                            </span>
-                          ))}
+                          {Object.entries(scenarioCase.exampleValues).map(
+                            ([key, value]) => (
+                              <span
+                                key={`${scenarioCase.id}-${key}`}
+                                className="rounded-full border border-border bg-background px-3 py-1"
+                              >
+                                {key}: {value}
+                              </span>
+                            )
+                          )}
                         </div>
                       ) : null}
                     </div>
@@ -108,7 +117,9 @@ export function ScenarioGroups(props: {
                         key={`${scenarioCase.id}-step-${index + 1}`}
                         className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-muted-foreground"
                       >
-                        <span className="mr-2 font-semibold text-foreground">{step.keyword}</span>
+                        <span className="mr-2 font-semibold text-foreground">
+                          {step.keyword}
+                        </span>
                         {step.text}
                       </li>
                     ))}

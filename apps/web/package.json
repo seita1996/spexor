@@ -5,7 +5,15 @@
   "bin": {
     "spexor": "./bin/spexor.mjs"
   },
-  "files": ["bin", "index.html", "postcss.config.cjs", "server", "src", "tailwind.config.ts", "vite.config.ts"],
+  "files": [
+    "bin",
+    "index.html",
+    "postcss.config.cjs",
+    "server",
+    "src",
+    "tailwind.config.ts",
+    "vite.config.ts"
+  ],
   "publishConfig": {
     "access": "public"
   },

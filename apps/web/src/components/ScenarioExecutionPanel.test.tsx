@@ -19,12 +19,24 @@ describe("ScenarioExecutionPanel", () => {
       />
     );
 
-    await userEvent.type(screen.getByLabelText("Tester name"), "qa@example.com");
-    await userEvent.type(screen.getByLabelText("Notes"), "Passed after clearing cache");
+    await userEvent.type(
+      screen.getByLabelText("Tester name"),
+      "qa@example.com"
+    );
+    await userEvent.type(
+      screen.getByLabelText("Notes"),
+      "Passed after clearing cache"
+    );
     await userEvent.selectOptions(screen.getByLabelText("Browser"), "safari");
     await userEvent.selectOptions(screen.getByLabelText("Platform"), "mac");
-    await userEvent.type(screen.getByPlaceholderText("/tmp/screenshot.png"), "/tmp/login.png");
-    await userEvent.type(screen.getByPlaceholderText("Optional label"), "mobile screenshot");
+    await userEvent.type(
+      screen.getByPlaceholderText("/tmp/screenshot.png"),
+      "/tmp/login.png"
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText("Optional label"),
+      "mobile screenshot"
+    );
     await userEvent.click(screen.getByRole("button", { name: "Save result" }));
 
     expect(onSubmit).toHaveBeenCalledWith({

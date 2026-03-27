@@ -1,7 +1,12 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 
-type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive";
+type ButtonVariant =
+  | "default"
+  | "outline"
+  | "secondary"
+  | "ghost"
+  | "destructive";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const variantStyles: Record<ButtonVariant, string> = {

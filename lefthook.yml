@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: false
+  commands:
+    harness:
+      run: pnpm harness:check
+    codex-turn-check:
+      run: pnpm codex:turn-check staged

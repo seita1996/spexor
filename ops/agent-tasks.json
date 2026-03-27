@@ -1,0 +1,35 @@
+{
+  "lastReviewedOn": "2026-03-28",
+  "currentFocus": "Stabilize the Codex-first development harness for the Spexor workspace.",
+  "startupRoutine": [
+    "Confirm cwd and clean/dirty git state.",
+    "Read the last five commits.",
+    "Read this file and pick the highest-priority open task.",
+    "Run the smallest relevant verification command before editing.",
+    "Run the matching guard command before declaring completion."
+  ],
+  "taskQueue": [
+    {
+      "id": "harness-baseline",
+      "priority": "high",
+      "status": "done",
+      "summary": "Add AGENTS.md, ADR baseline, deterministic quality gates, and pre-commit automation."
+    },
+    {
+      "id": "e2e-smoke",
+      "priority": "medium",
+      "status": "todo",
+      "summary": "Add browser-level smoke coverage for the core spec list and feature detail flows."
+    },
+    {
+      "id": "architecture-guards",
+      "priority": "medium",
+      "status": "todo",
+      "summary": "Add explicit structural checks for package boundaries and app-to-package dependency direction."
+    }
+  ],
+  "completionChecks": {
+    "default": ["pnpm guard"],
+    "ui": ["pnpm guard", "manual browser sanity check"]
+  }
+}

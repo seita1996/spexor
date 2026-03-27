@@ -21,7 +21,9 @@ function resolveInitialTheme(): Theme {
     return stored;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 export function ThemeProvider(props: { children: React.ReactNode }) {
@@ -37,12 +39,17 @@ export function ThemeProvider(props: { children: React.ReactNode }) {
     () => ({
       theme,
       setTheme: setThemeState,
-      toggleTheme: () => setThemeState((current) => (current === "dark" ? "light" : "dark"))
+      toggleTheme: () =>
+        setThemeState((current) => (current === "dark" ? "light" : "dark"))
     }),
     [theme]
   );
 
-  return <ThemeContext.Provider value={value}>{props.children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      {props.children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {

@@ -27,7 +27,10 @@ export function normalizeTags(tags: readonly string[]): string[] {
   return [...new Set(tags.map(normalizeTag).filter(Boolean))];
 }
 
-export function inferParseHealth(issuesCount: number, hasError: boolean): ParseHealth {
+export function inferParseHealth(
+  issuesCount: number,
+  hasError: boolean
+): ParseHealth {
   if (hasError) {
     return "error";
   }
@@ -40,12 +43,14 @@ export function inferParseHealth(issuesCount: number, hasError: boolean): ParseH
 }
 
 export function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "scenario";
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "scenario"
+  );
 }
 
 export function createScenarioStableId(
@@ -58,11 +63,16 @@ export function createScenarioStableId(
   return exampleIndex === undefined ? base : `${base}::example-${exampleIndex}`;
 }
 
-export function interpolateTemplate(text: string, values: Record<string, string>): string {
+export function interpolateTemplate(
+  text: string,
+  values: Record<string, string>
+): string {
   return text.replace(/<([^>]+)>/g, (match, key) => values[key] ?? match);
 }
 
-export function expandScenarioCases(scenario: ScenarioSpec): ScenarioCaseSpec[] {
+export function expandScenarioCases(
+  scenario: ScenarioSpec
+): ScenarioCaseSpec[] {
   if (scenario.kind === "scenario") {
     return [
       {
@@ -116,7 +126,11 @@ export function expandFeatureCases(feature: FeatureSpec): ScenarioCaseSpec[] {
     const occurrence = (occurrenceMap.get(normalizedTitle) ?? 0) + 1;
     occurrenceMap.set(normalizedTitle, occurrence);
 
-    const baseId = createScenarioStableId(feature.relativePath, scenario.title, occurrence);
+    const baseId = createScenarioStableId(
+      feature.relativePath,
+      scenario.title,
+      occurrence
+    );
 
     if (scenario.kind === "scenario") {
       cases.push({
@@ -137,7 +151,12 @@ export function expandFeatureCases(feature: FeatureSpec): ScenarioCaseSpec[] {
       for (const row of examples.rows) {
         exampleOffset += 1;
         cases.push({
-          id: createScenarioStableId(feature.relativePath, scenario.title, occurrence, exampleOffset),
+          id: createScenarioStableId(
+            feature.relativePath,
+            scenario.title,
+            occurrence,
+            exampleOffset
+          ),
           scenarioId: baseId,
           title: interpolateTemplate(scenario.title, row.values),
           description: scenario.description,
@@ -160,7 +179,9 @@ export function expandFeatureCases(feature: FeatureSpec): ScenarioCaseSpec[] {
   return cases;
 }
 
-export function pickMostSevereStatus(statuses: readonly RunStatus[]): RunStatus | null {
+export function pickMostSevereStatus(
+  statuses: readonly RunStatus[]
+): RunStatus | null {
   let winner: RunStatus | null = null;
 
   for (const status of statuses) {

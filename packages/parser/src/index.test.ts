@@ -76,6 +76,8 @@ Feature: Broken metadata
 
     expect(parsed.parseHealth).toBe("error");
     expect(parsed.feature).toBeUndefined();
-    expect(parsed.issues.some((issue) => issue.code === "gherkin_invalid")).toBe(true);
+    expect(
+      parsed.issues.some((issue) => issue.code === "gherkin_invalid")
+    ).toBe(true);
   });
 });

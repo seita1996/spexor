@@ -34,13 +34,17 @@ const configSchema = z
   })
   .passthrough();
 
-export async function loadConfig(options: { cwd?: string } = {}): Promise<ResolvedSpexorConfig> {
+export async function loadConfig(
+  options: { cwd?: string } = {}
+): Promise<ResolvedSpexorConfig> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const configPath = path.resolve(cwd, "spexor.config.ts");
 
   try {
     await fs.access(configPath);
-    const imported = await import(`${pathToFileURL(configPath).href}?t=${Date.now()}`);
+    const imported = await import(
+      `${pathToFileURL(configPath).href}?t=${Date.now()}`
+    );
     const parsed = configSchema.parse(imported.default ?? imported);
     return resolveConfigPaths(parsed, cwd, configPath);
   } catch (error) {
@@ -49,7 +53,9 @@ export async function loadConfig(options: { cwd?: string } = {}): Promise<Resolv
     }
 
     if (error instanceof z.ZodError) {
-      throw new Error(`Invalid Spexor config at ${configPath}: ${error.message}`);
+      throw new Error(
+        `Invalid Spexor config at ${configPath}: ${error.message}`
+      );
     }
 
     throw error;

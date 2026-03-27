@@ -8,7 +8,9 @@ import { defineConfig } from "vite";
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(webDir, "../..");
-const monorepoMode = fs.existsSync(path.join(workspaceRoot, "pnpm-workspace.yaml"));
+const monorepoMode = fs.existsSync(
+  path.join(workspaceRoot, "pnpm-workspace.yaml")
+);
 const installedUiRoot = safeResolvePackageRoot("@spexor/ui");
 const workspaceAliases = monorepoMode
   ? {
@@ -34,7 +36,10 @@ export default defineConfig({
       }
     },
     fs: {
-      allow: [monorepoMode ? workspaceRoot : webDir, ...(installedUiRoot ? [installedUiRoot] : [])]
+      allow: [
+        monorepoMode ? workspaceRoot : webDir,
+        ...(installedUiRoot ? [installedUiRoot] : [])
+      ]
     }
   }
 });

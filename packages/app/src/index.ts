@@ -1,20 +1,20 @@
 import fs from "node:fs/promises";
-import chokidar, { type FSWatcher } from "chokidar";
 import { loadConfig, type ResolvedSpexorConfig } from "@spexor/config";
 import { initDatabase, parseJson, type SpexorDatabase } from "@spexor/db";
 import {
-  summarizeLatestStatuses,
   type EvidenceRef,
   type FeatureMetadata,
   type LatestScenarioResult,
-  type ParseIssue,
   type ParseHealth,
+  type ParseIssue,
   type RunStatus,
   type ScenarioCaseSpec,
+  type StatusSummary,
   type StepSpec,
-  type StatusSummary
+  summarizeLatestStatuses
 } from "@spexor/domain";
 import { parseSpecFile, scanSpecFiles } from "@spexor/parser";
+import chokidar, { type FSWatcher } from "chokidar";
 
 export interface SpecsListItemDto {
   featureId: string;
@@ -99,8 +99,12 @@ export interface SpexorApp {
   close(): Promise<void>;
 }
 
-export async function createSpexorApp(options: { rootDir?: string } = {}): Promise<SpexorApp> {
-  const config = await loadConfig(options.rootDir ? { cwd: options.rootDir } : {});
+export async function createSpexorApp(
+  options: { rootDir?: string } = {}
+): Promise<SpexorApp> {
+  const config = await loadConfig(
+    options.rootDir ? { cwd: options.rootDir } : {}
+  );
   await fs.mkdir(config.specDirAbs, { recursive: true });
   await fs.mkdir(config.evidenceDirAbs, { recursive: true });
   const database = initDatabase(config.dbPathAbs);
@@ -108,10 +112,14 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
   let watcher: FSWatcher | null = null;
   let syncTimeout: NodeJS.Timeout | undefined;
 
-  const syncSpecsFromFilesystem = async (): Promise<{ processedCount: number }> => {
+  const syncSpecsFromFilesystem = async (): Promise<{
+    processedCount: number;
+  }> => {
     const specFiles = await scanSpecFiles(config.specDirAbs);
     const parsedFiles = await Promise.all(
-      specFiles.map((filePath) => parseSpecFile(filePath, { rootDir: config.rootDir }))
+      specFiles.map((filePath) =>
+        parseSpecFile(filePath, { rootDir: config.rootDir })
+      )
     );
     return database.saveParsedSpecs(parsedFiles);
   };
@@ -152,7 +160,9 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
 
       return rows.map((row) => {
         const feature = database.getFeature(row.relativePath);
-        const latestResults = feature ? database.getFeatureLatestResults(row.relativePath) : [];
+        const latestResults = feature
+          ? database.getFeatureLatestResults(row.relativePath)
+          : [];
         return {
           featureId: row.relativePath,
           title: feature?.displayTitle ?? row.displayTitle,
@@ -227,7 +237,9 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
             scenario.exampleValuesJson,
             undefined
           ),
-          location: scenario.sourceLine ? { line: scenario.sourceLine } : undefined,
+          location: scenario.sourceLine
+            ? { line: scenario.sourceLine }
+            : undefined,
           sourceLine: scenario.sourceLine,
           latestResult
         });
@@ -237,7 +249,9 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
       const scenarioGroups = [...groupedScenarios.values()].map((group) => ({
         ...group,
         aggregateStatus: summarizeLatestStatuses(
-          group.cases.flatMap((scenario) => (scenario.latestResult ? [scenario.latestResult] : []))
+          group.cases.flatMap((scenario) =>
+            scenario.latestResult ? [scenario.latestResult] : []
+          )
         ).aggregate
       }));
 
@@ -249,7 +263,10 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
         parseHealth: feature.parseHealth as ParseHealth,
         issueCount: feature.issueCount,
         issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
-        metadata: parseJson<FeatureMetadata>(feature.metadataJson, emptyMetadata()),
+        metadata: parseJson<FeatureMetadata>(
+          feature.metadataJson,
+          emptyMetadata()
+        ),
         description: feature.description,
         background: parseJson<StepSpec[]>(feature.backgroundJson, []),
         scenarioGroups
@@ -278,7 +295,9 @@ export async function createSpexorApp(options: { rootDir?: string } = {}): Promi
         throw new Error("Tester name is required.");
       }
 
-      const attachmentRefs = (input.attachments ?? []).filter((attachment) => attachment.value.trim());
+      const attachmentRefs = (input.attachments ?? []).filter((attachment) =>
+        attachment.value.trim()
+      );
 
       return database.recordScenarioRun({
         scenarioKey: scenarioId,
@@ -325,5 +344,9 @@ function emptyMetadata(): FeatureMetadata {
   };
 }
 
+export type {
+  LatestScenarioResult,
+  ParseIssue,
+  RunStatus
+} from "@spexor/domain";
 export type { SpexorDatabase };
-export type { LatestScenarioResult, ParseIssue, RunStatus } from "@spexor/domain";

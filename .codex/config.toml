@@ -1,0 +1,1 @@
+notify = ["python3", "hooks/agent_turn_complete.py"]

@@ -4,16 +4,30 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.15.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "lefthook"
+    ]
+  },
   "scripts": {
     "dev": "pnpm --filter @spexor/web dev",
     "build": "pnpm --filter @spexor/web build",
+    "harness:check": "node ./scripts/harness/check-harness.mjs",
+    "codex:turn-check": "node ./scripts/harness/codex-turn-check.mjs",
+    "format": "biome format --write .",
+    "lint": "oxlint .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "release:check": "pnpm typecheck && pnpm test && pnpm build",
+    "guard:fast": "pnpm harness:check && pnpm lint && pnpm typecheck",
+    "guard": "pnpm guard:fast && pnpm test",
+    "agent:start": "node ./scripts/agent-start.mjs",
+    "prepare": "lefthook install",
+    "release:check": "pnpm guard && pnpm build",
     "release:publish": "pnpm -r publish --access public --no-git-checks --report-summary"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -24,6 +38,8 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "jsdom": "^26.0.0",
+    "lefthook": "^1.13.6",
+    "oxlint": "^1.29.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.3",

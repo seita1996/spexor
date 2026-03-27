@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import path from "node:path";
 import { createRequire } from "node:module";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
@@ -20,7 +20,7 @@ switch (command) {
     runDev();
     break;
   case "api":
-    runSingleProcess("api", [
+    runSingleProcess([
       "--import",
       "tsx",
       path.join(packageRoot, "server/index.ts")
@@ -48,11 +48,15 @@ function runDev() {
       env,
       stdio: "inherit"
     }),
-    spawn(process.execPath, [viteCli, "--config", viteConfig, "--host", "127.0.0.1"], {
-      cwd: packageRoot,
-      env,
-      stdio: "inherit"
-    })
+    spawn(
+      process.execPath,
+      [viteCli, "--config", viteConfig, "--host", "127.0.0.1"],
+      {
+        cwd: packageRoot,
+        env,
+        stdio: "inherit"
+      }
+    )
   ];
 
   const shutdown = (exitCode = 0) => {
@@ -77,7 +81,7 @@ function runDev() {
   }
 }
 
-function runSingleProcess(label, args) {
+function runSingleProcess(args) {
   const child = spawn(process.execPath, args, {
     cwd: packageRoot,
     env,

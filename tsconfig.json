@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["spexor.config.ts", "vitest.config.ts", "vite.workspace-aliases.ts"]
+  "include": [
+    "spexor.config.ts",
+    "vitest.config.ts",
+    "vite.workspace-aliases.ts"
+  ]
 }

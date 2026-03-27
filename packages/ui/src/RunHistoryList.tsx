@@ -32,7 +32,9 @@ export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
             <div className="grid gap-2">
               <div className="flex items-center gap-3">
                 <StatusBadge status={item.status} />
-                <span className="text-sm font-medium text-foreground">{item.testerName}</span>
+                <span className="text-sm font-medium text-foreground">
+                  {item.testerName}
+                </span>
               </div>
               <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 <span>{new Date(item.createdAt).toLocaleString()}</span>
@@ -60,7 +62,9 @@ export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
                   </span>
                   {attachment.value}
                   {attachment.label ? (
-                    <span className="ml-2 text-xs text-muted-foreground">({attachment.label})</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({attachment.label})
+                    </span>
                   ) : null}
                 </li>
               ))}

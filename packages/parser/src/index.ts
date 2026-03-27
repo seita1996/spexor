@@ -1,23 +1,27 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import matter from "gray-matter";
-import { AstBuilder, GherkinClassicTokenMatcher, Parser } from "@cucumber/gherkin";
+import {
+  AstBuilder,
+  GherkinClassicTokenMatcher,
+  Parser
+} from "@cucumber/gherkin";
 import { IdGenerator } from "@cucumber/messages";
 import {
   createScenarioStableId,
+  type FeatureMetadata,
+  type FeatureSpec,
   inferParseHealth,
   normalizePath,
   normalizeTags,
-  type FeatureMetadata,
-  type FeatureSpec,
-  type ParseIssue,
   type ParsedSpecFile,
+  type ParseIssue,
   type ScenarioExamples,
   type ScenarioSpec,
   type SourceLocation,
   type StepSpec
 } from "@spexor/domain";
+import matter from "gray-matter";
 import { z } from "zod";
 
 const frontmatterSchema = z
@@ -73,7 +77,10 @@ export function parseSpecText(
 
   let feature: FeatureSpec | undefined;
   try {
-    const parser = new Parser(new AstBuilder(IdGenerator.uuid()), new GherkinClassicTokenMatcher());
+    const parser = new Parser(
+      new AstBuilder(IdGenerator.uuid()),
+      new GherkinClassicTokenMatcher()
+    );
     const gherkinDocument = parser.parse(frontmatterResult.content);
     feature = buildFeatureSpec(
       gherkinDocument,
@@ -88,7 +95,8 @@ export function parseSpecText(
       level: "error",
       source: "gherkin",
       path: relativePath,
-      message: error instanceof Error ? error.message : "Unknown Gherkin parse error"
+      message:
+        error instanceof Error ? error.message : "Unknown Gherkin parse error"
     });
   }
 
@@ -140,7 +148,8 @@ function parseFrontmatter(
       level: "warning",
       source: "frontmatter",
       path: filePath,
-      message: error instanceof Error ? error.message : "Invalid YAML frontmatter"
+      message:
+        error instanceof Error ? error.message : "Invalid YAML frontmatter"
     });
 
     return {
@@ -170,7 +179,16 @@ function parseMetadataObject(
 
   const parsed = frontmatterSchema.safeParse(rawData);
   if (parsed.success) {
-    const { title, browsers, platforms, tags, priority, owner, related, ...extra } = parsed.data;
+    const {
+      title,
+      browsers,
+      platforms,
+      tags,
+      priority,
+      owner,
+      related,
+      ...extra
+    } = parsed.data;
     return {
       title,
       browsers,
@@ -197,16 +215,24 @@ function parseMetadataObject(
   return {
     title: typeof value.title === "string" ? value.title : undefined,
     browsers: Array.isArray(value.browsers)
-      ? value.browsers.filter((item): item is string => typeof item === "string")
+      ? value.browsers.filter(
+          (item): item is string => typeof item === "string"
+        )
       : [],
     platforms: Array.isArray(value.platforms)
-      ? value.platforms.filter((item): item is string => typeof item === "string")
+      ? value.platforms.filter(
+          (item): item is string => typeof item === "string"
+        )
       : [],
     tags: Array.isArray(value.tags)
-      ? normalizeTags(value.tags.filter((item): item is string => typeof item === "string"))
+      ? normalizeTags(
+          value.tags.filter((item): item is string => typeof item === "string")
+        )
       : [],
     priority:
-      value.priority === "low" || value.priority === "medium" || value.priority === "high"
+      value.priority === "low" ||
+      value.priority === "medium" ||
+      value.priority === "high"
         ? value.priority
         : undefined,
     owner: typeof value.owner === "string" ? value.owner : undefined,
@@ -214,8 +240,17 @@ function parseMetadataObject(
       ? value.related.filter((item): item is string => typeof item === "string")
       : [],
     extra: Object.fromEntries(
-      Object.entries(value).filter(([key]) =>
-        !["title", "browsers", "platforms", "tags", "priority", "owner", "related"].includes(key)
+      Object.entries(value).filter(
+        ([key]) =>
+          ![
+            "title",
+            "browsers",
+            "platforms",
+            "tags",
+            "priority",
+            "owner",
+            "related"
+          ].includes(key)
       )
     )
   };
@@ -241,12 +276,18 @@ function buildFeatureSpec(
   }
 
   const background = featureNode.children
-    .flatMap((child) => ("background" in child && child.background ? [child.background] : []))
+    .flatMap((child) =>
+      "background" in child && child.background ? [child.background] : []
+    )
     .at(0);
 
   const scenarios = featureNode.children
-    .flatMap((child) => ("scenario" in child && child.scenario ? [child.scenario] : []))
-    .map((scenarioNode, index) => buildScenarioSpec(relativePath, scenarioNode.name, index, scenarioNode));
+    .flatMap((child) =>
+      "scenario" in child && child.scenario ? [child.scenario] : []
+    )
+    .map((scenarioNode, index) =>
+      buildScenarioSpec(relativePath, scenarioNode.name, index, scenarioNode)
+    );
 
   return {
     id: relativePath,
@@ -289,7 +330,8 @@ function buildScenarioSpec(
 ): ScenarioSpec {
   const occurrenceIndex = index + 1;
   const kind =
-    scenarioNode.keyword.toLowerCase().includes("outline") || scenarioNode.examples.length > 0
+    scenarioNode.keyword.toLowerCase().includes("outline") ||
+    scenarioNode.examples.length > 0
       ? "outline"
       : "scenario";
 
@@ -332,7 +374,8 @@ function buildExamples(
   }>
 ): ScenarioExamples[] {
   return exampleNodes.map((exampleNode) => {
-    const headers = exampleNode.tableHeader?.cells.map((cell) => cell.value) ?? [];
+    const headers =
+      exampleNode.tableHeader?.cells.map((cell) => cell.value) ?? [];
 
     return {
       name: exampleNode.name,
@@ -340,7 +383,12 @@ function buildExamples(
       headers,
       rows: (exampleNode.tableBody ?? []).map((row, rowIndex) => ({
         index: rowIndex + 1,
-        values: Object.fromEntries(headers.map((header, columnIndex) => [header, row.cells[columnIndex]?.value ?? ""])),
+        values: Object.fromEntries(
+          headers.map((header, columnIndex) => [
+            header,
+            row.cells[columnIndex]?.value ?? ""
+          ])
+        ),
         location: toLocation(row.location)
       })),
       location: toLocation(exampleNode.location)
@@ -354,7 +402,9 @@ function stripFrontmatterBlock(text: string): string {
     return text;
   }
 
-  const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
+  const closingIndex = lines.findIndex(
+    (line, index) => index > 0 && line.trim() === "---"
+  );
   if (closingIndex === -1) {
     return text;
   }
@@ -362,7 +412,10 @@ function stripFrontmatterBlock(text: string): string {
   return lines.slice(closingIndex + 1).join("\n");
 }
 
-function toLocation(location?: { line?: number; column?: number }): SourceLocation | undefined {
+function toLocation(location?: {
+  line?: number;
+  column?: number;
+}): SourceLocation | undefined {
   if (!location?.line) {
     return undefined;
   }

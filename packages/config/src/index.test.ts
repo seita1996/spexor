@@ -5,7 +5,9 @@ import { loadConfig, resolveConfigPaths } from "./index";
 
 describe("@spexor/config", () => {
   it("falls back to defaults when no config file exists", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-config-defaults-"));
+    const tempRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "spexor-config-defaults-")
+    );
 
     const config = await loadConfig({ cwd: tempRoot });
 
@@ -15,7 +17,9 @@ describe("@spexor/config", () => {
   });
 
   it("loads a custom spexor.config.ts file", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-config-custom-"));
+    const tempRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "spexor-config-custom-")
+    );
     await fs.writeFile(
       path.join(tempRoot, "spexor.config.ts"),
       `export default {
@@ -35,7 +39,10 @@ describe("@spexor/config", () => {
   });
 
   it("resolves paths from a partial config object", () => {
-    const resolved = resolveConfigPaths({ specDir: "./manual" }, "/workspace/demo");
+    const resolved = resolveConfigPaths(
+      { specDir: "./manual" },
+      "/workspace/demo"
+    );
 
     expect(resolved.specDirAbs).toBe("/workspace/demo/manual");
     expect(resolved.dbPathAbs).toBe("/workspace/demo/.spexor/spexor.db");

@@ -45,15 +45,23 @@ Feature: User login
     expect(list).toHaveLength(1);
     expect(list[0]?.title).toBe("Login");
 
-    const detail = await app.getFeatureDetail(list[0]!.featureId);
+    const firstFeature = list[0];
+    expect(firstFeature).toBeDefined();
+    const detail = await app.getFeatureDetail(firstFeature?.featureId ?? "");
     expect(detail?.scenarioGroups).toHaveLength(1);
 
-    const scenarioId = detail!.scenarioGroups[0]!.cases[0]!.id;
+    const firstGroup = detail?.scenarioGroups[0];
+    expect(firstGroup).toBeDefined();
+    const firstCase = firstGroup?.cases[0];
+    expect(firstCase).toBeDefined();
+    const scenarioId = firstCase?.id ?? "";
     await app.recordScenarioResult(scenarioId, {
       testerName: "qa@example.com",
       status: "failed",
       notes: "reproducible issue",
-      attachments: [{ kind: "url", value: "https://example.com/log", label: "log" }]
+      attachments: [
+        { kind: "url", value: "https://example.com/log", label: "log" }
+      ]
     });
 
     const history = await app.getScenarioHistory(scenarioId);

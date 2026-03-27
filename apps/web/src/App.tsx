@@ -13,14 +13,20 @@ export function App() {
           <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
             <div className="grid gap-3">
               <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="secondary" className="font-mono uppercase tracking-[0.26em]">
+                <Badge
+                  variant="secondary"
+                  className="font-mono uppercase tracking-[0.26em]"
+                >
                   spec + explorer
                 </Badge>
-                <div className="text-2xl font-semibold tracking-tight">Spexor</div>
+                <div className="text-2xl font-semibold tracking-tight">
+                  Spexor
+                </div>
               </div>
               <div className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Local-first manual execution for Git-managed Gherkin specs. SQLite stores
-                execution history while `.feature` files remain the source of truth.
+                Local-first manual execution for Git-managed Gherkin specs.
+                SQLite stores execution history while `.feature` files remain
+                the source of truth.
               </div>
             </div>
             <ThemeToggle />

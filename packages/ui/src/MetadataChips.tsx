@@ -3,7 +3,8 @@ export function MetadataChips(props: {
   values: string[];
   emptyLabel?: string;
 }) {
-  const values = props.values.length > 0 ? props.values : [props.emptyLabel ?? "none"];
+  const values =
+    props.values.length > 0 ? props.values : [props.emptyLabel ?? "none"];
 
   return (
     <div className="flex flex-wrap gap-2">

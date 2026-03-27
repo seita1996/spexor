@@ -1,11 +1,22 @@
+import type { FeatureDetailDto, ScenarioHistoryDto } from "@spexor/app";
+import {
+  MetadataChips,
+  ParseHealthBadge,
+  RunHistoryList,
+  ScenarioGroups,
+  StatusBadge
+} from "@spexor/ui";
 import { startTransition, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import type { FeatureDetailDto, ScenarioHistoryDto } from "@spexor/app";
-import { MetadataChips, ParseHealthBadge, RunHistoryList, ScenarioGroups, StatusBadge } from "@spexor/ui";
 import { IssueList } from "../components/IssueList";
 import { ScenarioExecutionPanel } from "../components/ScenarioExecutionPanel";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "../components/ui/card";
 import { getFeature, getScenarioHistory, saveScenarioRun } from "../lib/api";
 
 export function FeatureDetailPage() {
@@ -34,7 +45,11 @@ export function FeatureDetailPage() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Failed to load feature.");
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load feature."
+          );
         }
       } finally {
         if (!cancelled) {
@@ -63,7 +78,11 @@ export function FeatureDetailPage() {
       setHistory(nextHistory);
       setError(null);
     } catch (historyError) {
-      setError(historyError instanceof Error ? historyError.message : "Failed to load history.");
+      setError(
+        historyError instanceof Error
+          ? historyError.message
+          : "Failed to load history."
+      );
     } finally {
       setHistoryLoading(false);
     }
@@ -99,7 +118,10 @@ export function FeatureDetailPage() {
       <div className="grid gap-6">
         <div>
           <Link to="/">
-            <Button variant="ghost" className="px-0 uppercase tracking-[0.18em] text-muted-foreground">
+            <Button
+              variant="ghost"
+              className="px-0 uppercase tracking-[0.18em] text-muted-foreground"
+            >
               Back to specs
             </Button>
           </Link>
@@ -107,53 +129,72 @@ export function FeatureDetailPage() {
 
         <Card className="border-border/70 bg-card/90">
           <CardContent className="grid gap-5 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="grid gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-semibold text-foreground">{detail.title}</h1>
-                <ParseHealthBadge health={detail.parseHealth} />
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="grid gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-semibold text-foreground">
+                    {detail.title}
+                  </h1>
+                  <ParseHealthBadge health={detail.parseHealth} />
+                </div>
+                <code className="text-sm text-muted-foreground">
+                  {detail.filePath}
+                </code>
+                {detail.featureTitle && detail.featureTitle !== detail.title ? (
+                  <div className="text-sm text-muted-foreground">
+                    Feature: {detail.featureTitle}
+                  </div>
+                ) : null}
               </div>
-              <code className="text-sm text-muted-foreground">{detail.filePath}</code>
-              {detail.featureTitle && detail.featureTitle !== detail.title ? (
-                <div className="text-sm text-muted-foreground">Feature: {detail.featureTitle}</div>
+
+              <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
+                <div className="text-xs uppercase tracking-[0.22em] text-primary-foreground/75">
+                  Scenario cases
+                </div>
+                <div className="mt-2 text-3xl font-semibold">
+                  {detail.scenarioGroups.reduce(
+                    (count, group) => count + group.cases.length,
+                    0
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {detail.description ? (
+              <p className="max-w-4xl text-sm leading-7 text-muted-foreground">
+                {detail.description}
+              </p>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <MetadataChips label="Tags" values={detail.metadata.tags} />
+              <MetadataChips
+                label="Browsers"
+                values={detail.metadata.browsers}
+              />
+              <MetadataChips
+                label="Platforms"
+                values={detail.metadata.platforms}
+              />
+              <MetadataChips
+                label="Related"
+                values={detail.metadata.related}
+                emptyLabel="no links"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              {detail.metadata.owner ? (
+                <span>Owner: {detail.metadata.owner}</span>
+              ) : null}
+              {detail.metadata.priority ? (
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-amber-900 dark:text-amber-200">
+                  Priority: {detail.metadata.priority}
+                </span>
               ) : null}
             </div>
 
-            <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
-              <div className="text-xs uppercase tracking-[0.22em] text-primary-foreground/75">
-                Scenario cases
-              </div>
-              <div className="mt-2 text-3xl font-semibold">
-                {detail.scenarioGroups.reduce((count, group) => count + group.cases.length, 0)}
-              </div>
-            </div>
-          </div>
-
-          {detail.description ? (
-            <p className="max-w-4xl text-sm leading-7 text-muted-foreground">{detail.description}</p>
-          ) : null}
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <MetadataChips label="Tags" values={detail.metadata.tags} />
-            <MetadataChips label="Browsers" values={detail.metadata.browsers} />
-            <MetadataChips label="Platforms" values={detail.metadata.platforms} />
-            <MetadataChips
-              label="Related"
-              values={detail.metadata.related}
-              emptyLabel="no links"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-            {detail.metadata.owner ? <span>Owner: {detail.metadata.owner}</span> : null}
-            {detail.metadata.priority ? (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-amber-900 dark:text-amber-200">
-                Priority: {detail.metadata.priority}
-              </span>
-            ) : null}
-          </div>
-
-          <IssueList issues={detail.issues} />
+            <IssueList issues={detail.issues} />
           </CardContent>
         </Card>
 
@@ -163,17 +204,19 @@ export function FeatureDetailPage() {
               <CardTitle className="text-lg">Background</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-            <ol className="mt-4 grid gap-2">
-              {detail.background.map((step, index) => (
-                <li
-                  key={`background-step-${index + 1}`}
-                  className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
-                >
-                  <span className="mr-2 font-semibold text-foreground">{step.keyword}</span>
-                  {step.text}
-                </li>
-              ))}
-            </ol>
+              <ol className="mt-4 grid gap-2">
+                {detail.background.map((step, index) => (
+                  <li
+                    key={`background-step-${index + 1}`}
+                    className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+                  >
+                    <span className="mr-2 font-semibold text-foreground">
+                      {step.keyword}
+                    </span>
+                    {step.text}
+                  </li>
+                ))}
+              </ol>
             </CardContent>
           </Card>
         ) : null}
@@ -216,12 +259,16 @@ export function FeatureDetailPage() {
         {!activeScenario || !panelMode ? (
           <div className="grid gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
             <p>Select a scenario case to execute it or inspect history.</p>
-            <p>Spexor stores local run history in SQLite and leaves the `.feature` file untouched.</p>
+            <p>
+              Spexor stores local run history in SQLite and leaves the
+              `.feature` file untouched.
+            </p>
           </div>
         ) : null}
 
         {activeScenario && panelMode === "run" ? (
           <ScenarioExecutionPanel
+            key={activeScenario.id}
             scenarioId={activeScenario.id}
             scenarioTitle={activeScenario.title}
             browsers={detail.metadata.browsers}
@@ -244,7 +291,9 @@ export function FeatureDetailPage() {
                 });
               } catch (submitError) {
                 setSaveError(
-                  submitError instanceof Error ? submitError.message : "Failed to save run."
+                  submitError instanceof Error
+                    ? submitError.message
+                    : "Failed to save run."
                 );
               } finally {
                 setSaving(false);
@@ -257,8 +306,12 @@ export function FeatureDetailPage() {
           <div className="grid gap-4">
             <header className="grid gap-2">
               <div className="flex items-center gap-3">
-                <StatusBadge status={activeScenario.latestResult?.status ?? "not-run"} />
-                <h3 className="text-lg font-semibold text-foreground">{activeScenario.title}</h3>
+                <StatusBadge
+                  status={activeScenario.latestResult?.status ?? "not-run"}
+                />
+                <h3 className="text-lg font-semibold text-foreground">
+                  {activeScenario.title}
+                </h3>
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
                 Recent local execution records for this scenario case.

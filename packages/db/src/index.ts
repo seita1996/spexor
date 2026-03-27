@@ -3,11 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
-  expandFeatureCases,
-  normalizePath,
   type EvidenceRef,
+  expandFeatureCases,
   type FeatureSpec,
   type LatestScenarioResult,
+  normalizePath,
   type ParsedSpecFile,
   type RunStatus,
   type ScenarioCaseSpec,
@@ -91,7 +91,10 @@ export interface SpexorDatabase {
   getFeatureScenarios(relativePath: string): ScenarioRecord[];
   getScenario(relativePath: string): ScenarioRecord | null;
   getFeatureLatestResults(relativePath: string): ScenarioLatestResultRecord[];
-  getScenarioRunHistory(scenarioKey: string, limit?: number): ScenarioHistoryEntry[];
+  getScenarioRunHistory(
+    scenarioKey: string,
+    limit?: number
+  ): ScenarioHistoryEntry[];
   recordScenarioRun(input: RecordScenarioRunInput): ScenarioHistoryEntry;
 }
 
@@ -260,11 +263,23 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   `);
 
   const deactivateMissing = (relativePaths: string[]) => {
-    const activeFlag = relativePaths.length === 0 ? "" : `WHERE relative_path NOT IN (${relativePaths.map(() => "?").join(", ")})`;
-    database.prepare(`UPDATE spec_files SET is_active = 0 ${activeFlag}`).run(...relativePaths);
-    const featureFlag = relativePaths.length === 0 ? "" : `WHERE feature_key NOT IN (${relativePaths.map(() => "?").join(", ")})`;
-    database.prepare(`UPDATE features SET is_active = 0 ${featureFlag}`).run(...relativePaths);
-    database.prepare(`UPDATE scenarios SET is_active = 0 ${featureFlag}`).run(...relativePaths);
+    const activeFlag =
+      relativePaths.length === 0
+        ? ""
+        : `WHERE relative_path NOT IN (${relativePaths.map(() => "?").join(", ")})`;
+    database
+      .prepare(`UPDATE spec_files SET is_active = 0 ${activeFlag}`)
+      .run(...relativePaths);
+    const featureFlag =
+      relativePaths.length === 0
+        ? ""
+        : `WHERE feature_key NOT IN (${relativePaths.map(() => "?").join(", ")})`;
+    database
+      .prepare(`UPDATE features SET is_active = 0 ${featureFlag}`)
+      .run(...relativePaths);
+    database
+      .prepare(`UPDATE scenarios SET is_active = 0 ${featureFlag}`)
+      .run(...relativePaths);
   };
 
   const saveParsedSpecsTransaction = (parsedFiles: ParsedSpecFile[]) =>
@@ -286,10 +301,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
 
         if (!parsedFile.feature) {
           database
-            .prepare("UPDATE features SET is_active = 0, synced_at = ? WHERE feature_key = ?")
+            .prepare(
+              "UPDATE features SET is_active = 0, synced_at = ? WHERE feature_key = ?"
+            )
             .run(now, parsedFile.relativePath);
           database
-            .prepare("UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?")
+            .prepare(
+              "UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?"
+            )
             .run(now, parsedFile.relativePath);
           continue;
         }
@@ -306,7 +325,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       }
     });
 
-  const getScenarioRunHistory = (scenarioKey: string, limit = 20): ScenarioHistoryEntry[] => {
+  const getScenarioRunHistory = (
+    scenarioKey: string,
+    limit = 20
+  ): ScenarioHistoryEntry[] => {
     const rows = database
       .prepare(`
         SELECT
@@ -334,7 +356,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
 
     return rows.map((row) => ({
       scenarioKey,
-      ...toLatestResultRecord(row, attachmentMap.get(String(row.result_id)) ?? [])
+      ...toLatestResultRecord(
+        row,
+        attachmentMap.get(String(row.result_id)) ?? []
+      )
     }));
   };
 
@@ -348,7 +373,9 @@ export function initDatabase(dbPath: string): SpexorDatabase {
     },
     getSpecFiles() {
       const rows = database
-        .prepare("SELECT * FROM spec_files WHERE is_active = 1 ORDER BY relative_path")
+        .prepare(
+          "SELECT * FROM spec_files WHERE is_active = 1 ORDER BY relative_path"
+        )
         .all() as RawRow[];
       return rows.map(toSpecFileRecord);
     },
@@ -360,7 +387,9 @@ export function initDatabase(dbPath: string): SpexorDatabase {
     },
     getFeature(relativePath) {
       const row = database
-        .prepare("SELECT * FROM features WHERE feature_key = ? AND is_active = 1 LIMIT 1")
+        .prepare(
+          "SELECT * FROM features WHERE feature_key = ? AND is_active = 1 LIMIT 1"
+        )
         .get(relativePath) as RawRow | undefined;
       return row ? toFeatureRecord(row) : null;
     },
@@ -430,7 +459,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
 
       return rows.map((row) => ({
         scenarioKey: String(row.scenario_key),
-        ...toLatestResultRecord(row, attachmentMap.get(String(row.result_id)) ?? [])
+        ...toLatestResultRecord(
+          row,
+          attachmentMap.get(String(row.result_id)) ?? []
+        )
       }));
     },
     getScenarioRunHistory,
@@ -460,7 +492,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
             INSERT INTO run_results (id, run_id, scenario_key, status, notes, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
           `)
-          .run(resultId, runId, input.scenarioKey, input.status, input.notes ?? "", now);
+          .run(
+            resultId,
+            runId,
+            input.scenarioKey,
+            input.status,
+            input.notes ?? "",
+            now
+          );
 
         const insertAttachment = database.prepare(`
           INSERT INTO attachments (id, run_result_id, kind, value, label, created_at)
@@ -508,7 +547,9 @@ function saveFeatureSnapshot(
   });
 
   database
-    .prepare("UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?")
+    .prepare(
+      "UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?"
+    )
     .run(now, feature.relativePath);
 
   const cases = expandFeatureCases(feature);
@@ -517,7 +558,11 @@ function saveFeatureSnapshot(
   for (const scenario of feature.scenarios) {
     scenarioIndexMap.set(
       scenario.id,
-      cases.filter((scenarioCase) => scenarioCase.scenarioId === scenario.id || scenarioCase.id === scenario.id)
+      cases.filter(
+        (scenarioCase) =>
+          scenarioCase.scenarioId === scenario.id ||
+          scenarioCase.id === scenario.id
+      )
     );
   }
 
@@ -532,13 +577,27 @@ function saveFeatureSnapshot(
       }
 
       sortOrder += 1;
-      upsertScenario.run(buildScenarioInsertRecord(feature.relativePath, scenario, scenarioCase, sortOrder));
+      upsertScenario.run(
+        buildScenarioInsertRecord(
+          feature.relativePath,
+          scenario,
+          scenarioCase,
+          sortOrder
+        )
+      );
       continue;
     }
 
     for (const scenarioCase of groupCases) {
       sortOrder += 1;
-      upsertScenario.run(buildScenarioInsertRecord(feature.relativePath, scenario, scenarioCase, sortOrder));
+      upsertScenario.run(
+        buildScenarioInsertRecord(
+          feature.relativePath,
+          scenario,
+          scenarioCase,
+          sortOrder
+        )
+      );
     }
   }
 }
@@ -561,7 +620,9 @@ function buildScenarioInsertRecord(
     outline_title: scenarioCase.outlineTitle ?? null,
     example_name: scenarioCase.exampleName ?? null,
     example_index: scenarioCase.exampleIndex ?? null,
-    example_values_json: scenarioCase.exampleValues ? JSON.stringify(scenarioCase.exampleValues) : null,
+    example_values_json: scenarioCase.exampleValues
+      ? JSON.stringify(scenarioCase.exampleValues)
+      : null,
     steps_json: JSON.stringify(scenarioCase.steps),
     tags_json: JSON.stringify(scenarioCase.tags),
     source_line: scenarioCase.location?.line ?? null,
@@ -614,7 +675,10 @@ function getAttachmentsForResultIds(
   return attachmentMap;
 }
 
-function toLatestResultRecord(row: RawRow, attachments: EvidenceRef[]): LatestScenarioResult {
+function toLatestResultRecord(
+  row: RawRow,
+  attachments: EvidenceRef[]
+): LatestScenarioResult {
   return {
     id: String(row.result_id),
     runId: String(row.run_id),
@@ -673,7 +737,9 @@ function toScenarioRecord(row: RawRow): ScenarioRecord {
     outlineTitle: row.outline_title ? String(row.outline_title) : null,
     exampleName: row.example_name ? String(row.example_name) : null,
     exampleIndex: row.example_index === null ? null : Number(row.example_index),
-    exampleValuesJson: row.example_values_json ? String(row.example_values_json) : null,
+    exampleValuesJson: row.example_values_json
+      ? String(row.example_values_json)
+      : null,
     stepsJson: String(row.steps_json),
     tagsJson: String(row.tags_json),
     sourceLine: row.source_line === null ? null : Number(row.source_line),

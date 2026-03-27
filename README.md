@@ -35,6 +35,7 @@ The MVP stores evidence as file path or URL references. That keeps Spexor lightw
 
 ```bash
 pnpm install
+pnpm harness:check
 pnpm dev
 ```
 
@@ -85,6 +86,17 @@ Execution history persists in `.spexor/spexor.db` across restarts.
 
 ## Docs
 
+## Harness
+
+Codex-centered development in this repository uses deterministic harness commands:
+
+- `pnpm harness:check` verifies the repository-level Codex and hook wiring.
+- `pnpm codex:turn-check` applies Oxlint fixes and Biome formatting to changed files.
+- `pnpm guard:fast` runs harness verification, lint, and typecheck.
+
 - [Architecture](/Users/tahara/Documents/prj/spexor/docs/architecture.md)
+- [Agent instructions](/Users/tahara/Documents/prj/spexor/AGENTS.md)
+- [ADR 0001: Codex harness baseline](/Users/tahara/Documents/prj/spexor/docs/adr/0001-codex-harness-baseline.md)
+- [ADR 0002: Codex turn-boundary guardrails](/Users/tahara/Documents/prj/spexor/docs/adr/0002-codex-turn-boundary-guardrails.md)
 - [Spec format](/Users/tahara/Documents/prj/spexor/docs/spec-format.md)
 - [Local data model](/Users/tahara/Documents/prj/spexor/docs/local-data-model.md)

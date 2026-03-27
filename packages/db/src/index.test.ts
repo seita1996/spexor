@@ -71,7 +71,9 @@ describe("@spexor/db", () => {
       testerName: "qa@example.com",
       status: "passed",
       notes: "happy path",
-      attachments: [{ kind: "file", value: "/tmp/screenshot.png", label: "desktop" }]
+      attachments: [
+        { kind: "file", value: "/tmp/screenshot.png", label: "desktop" }
+      ]
     });
 
     expect(saved.status).toBe("passed");

@@ -1,17 +1,21 @@
-import http from "node:http";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSpexorApp, type RecordScenarioResultInput } from "@spexor/app";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = process.env.SPEXOR_PROJECT_ROOT || findWorkspaceRoot(serverDir);
+const projectRoot =
+  process.env.SPEXOR_PROJECT_ROOT || findWorkspaceRoot(serverDir);
 const port = Number(process.env.SPEXOR_API_PORT ?? 4318);
 
 const spexor = await createSpexorApp({ rootDir: projectRoot });
 
 const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const url = new URL(
+    request.url ?? "/",
+    `http://${request.headers.host ?? "localhost"}`
+  );
   const { pathname } = url;
 
   try {
@@ -31,10 +35,14 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && pathname.startsWith("/api/features/")) {
-      const featureId = decodeURIComponent(pathname.slice("/api/features/".length));
+      const featureId = decodeURIComponent(
+        pathname.slice("/api/features/".length)
+      );
       const detail = await spexor.getFeatureDetail(featureId);
       if (!detail) {
-        return writeJson(response, 404, { error: `Feature not found: ${featureId}` });
+        return writeJson(response, 404, {
+          error: `Feature not found: ${featureId}`
+        });
       }
       return writeJson(response, 200, detail);
     }
@@ -45,11 +53,16 @@ const server = http.createServer(async (request, response) => {
       pathname.endsWith("/history")
     ) {
       const scenarioId = decodeURIComponent(
-        pathname.slice("/api/scenarios/".length, pathname.length - "/history".length)
+        pathname.slice(
+          "/api/scenarios/".length,
+          pathname.length - "/history".length
+        )
       );
       const history = await spexor.getScenarioHistory(scenarioId);
       if (!history) {
-        return writeJson(response, 404, { error: `Scenario not found: ${scenarioId}` });
+        return writeJson(response, 404, {
+          error: `Scenario not found: ${scenarioId}`
+        });
       }
       return writeJson(response, 200, history);
     }
@@ -60,7 +73,10 @@ const server = http.createServer(async (request, response) => {
       pathname.endsWith("/runs")
     ) {
       const scenarioId = decodeURIComponent(
-        pathname.slice("/api/scenarios/".length, pathname.length - "/runs".length)
+        pathname.slice(
+          "/api/scenarios/".length,
+          pathname.length - "/runs".length
+        )
       );
       const body = await readJsonBody(request);
       const result = await spexor.recordScenarioResult(
@@ -72,7 +88,8 @@ const server = http.createServer(async (request, response) => {
 
     writeJson(response, 404, { error: "Route not found." });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown server error";
+    const message =
+      error instanceof Error ? error.message : "Unknown server error";
     writeJson(response, 500, { error: message });
   }
 });
@@ -101,7 +118,11 @@ async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
   return raw ? (JSON.parse(raw) as unknown) : {};
 }
 
-function writeJson(response: http.ServerResponse, status: number, body: unknown): void {
+function writeJson(
+  response: http.ServerResponse,
+  status: number,
+  body: unknown
+): void {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8"
   });

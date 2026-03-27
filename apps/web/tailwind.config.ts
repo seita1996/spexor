@@ -14,7 +14,9 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
-    ...(fs.existsSync(monorepoUiPath) ? ["../../packages/ui/src/**/*.{ts,tsx}"] : []),
+    ...(fs.existsSync(monorepoUiPath)
+      ? ["../../packages/ui/src/**/*.{ts,tsx}"]
+      : []),
     ...(installedUiPackage ? [`${installedUiPackage}/src/**/*.{ts,tsx}`] : [])
   ],
   theme: {
