@@ -17,6 +17,14 @@ import {
   CardHeader,
   CardTitle
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
 import { getFeature, getScenarioHistory, saveScenarioRun } from "../lib/api";
 
 export function FeatureDetailPage() {
@@ -88,6 +96,13 @@ export function FeatureDetailPage() {
     }
   };
 
+  const closePanel = () => {
+    setActiveScenarioId(null);
+    setPanelMode(null);
+    setSaveError(null);
+    setHistory(null);
+  };
+
   if (loading) {
     return (
       <section className="rounded-xl border border-border bg-card/80 px-5 py-10 text-center text-sm text-muted-foreground">
@@ -114,7 +129,7 @@ export function FeatureDetailPage() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_420px]">
+    <>
       <div className="grid gap-6">
         <div>
           <Link to="/">
@@ -255,85 +270,122 @@ export function FeatureDetailPage() {
         />
       </div>
 
-      <aside className="grid h-fit gap-4 rounded-xl border border-border/70 bg-card/90 p-5 shadow-soft lg:sticky lg:top-6">
-        {!activeScenario || !panelMode ? (
-          <div className="grid gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
-            <p>Select a scenario case to execute it or inspect history.</p>
-            <p>
-              Spexor stores local run history in SQLite and leaves the
-              `.feature` file untouched.
-            </p>
-          </div>
-        ) : null}
+      <Dialog
+        open={Boolean(activeScenario && panelMode)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closePanel();
+          }
+        }}
+      >
+        <DialogContent>
+          {activeScenario && panelMode === "run" ? (
+            <div className="grid gap-5">
+              <DialogHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="grid gap-2">
+                    <DialogTitle>Record run</DialogTitle>
+                    <DialogDescription>
+                      Capture a local execution result for this scenario without
+                      editing the `.feature` file.
+                    </DialogDescription>
+                  </div>
+                  <DialogClose asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Close dialog"
+                    >
+                      Close
+                    </Button>
+                  </DialogClose>
+                </div>
+              </DialogHeader>
 
-        {activeScenario && panelMode === "run" ? (
-          <ScenarioExecutionPanel
-            key={activeScenario.id}
-            scenarioId={activeScenario.id}
-            scenarioTitle={activeScenario.title}
-            browsers={detail.metadata.browsers}
-            platforms={detail.metadata.platforms}
-            isSaving={saving}
-            saveError={saveError}
-            onSubmit={async (payload) => {
-              try {
-                setSaving(true);
-                setSaveError(null);
-                await saveScenarioRun(activeScenario.id, payload);
-                const [nextDetail, nextHistory] = await Promise.all([
-                  getFeature(featureId),
-                  getScenarioHistory(activeScenario.id)
-                ]);
-                startTransition(() => {
-                  setDetail(nextDetail);
-                  setHistory(nextHistory);
-                  setPanelMode("history");
-                });
-              } catch (submitError) {
-                setSaveError(
-                  submitError instanceof Error
-                    ? submitError.message
-                    : "Failed to save run."
-                );
-              } finally {
-                setSaving(false);
-              }
-            }}
-          />
-        ) : null}
+              <ScenarioExecutionPanel
+                key={activeScenario.id}
+                scenarioId={activeScenario.id}
+                scenarioTitle={activeScenario.title}
+                browsers={detail.metadata.browsers}
+                platforms={detail.metadata.platforms}
+                isSaving={saving}
+                saveError={saveError}
+                onSubmit={async (payload) => {
+                  try {
+                    setSaving(true);
+                    setSaveError(null);
+                    await saveScenarioRun(activeScenario.id, payload);
+                    const [nextDetail, nextHistory] = await Promise.all([
+                      getFeature(featureId),
+                      getScenarioHistory(activeScenario.id)
+                    ]);
+                    startTransition(() => {
+                      setDetail(nextDetail);
+                      setHistory(nextHistory);
+                      setPanelMode("history");
+                    });
+                  } catch (submitError) {
+                    setSaveError(
+                      submitError instanceof Error
+                        ? submitError.message
+                        : "Failed to save run."
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              />
+            </div>
+          ) : null}
 
-        {activeScenario && panelMode === "history" ? (
-          <div className="grid gap-4">
-            <header className="grid gap-2">
-              <div className="flex items-center gap-3">
-                <StatusBadge
-                  status={activeScenario.latestResult?.status ?? "not-run"}
-                />
-                <h3 className="text-lg font-semibold text-foreground">
-                  {activeScenario.title}
-                </h3>
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Recent local execution records for this scenario case.
-              </p>
-            </header>
+          {activeScenario && panelMode === "history" ? (
+            <div className="grid gap-4">
+              <DialogHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="grid gap-2">
+                    <div className="flex items-center gap-3">
+                      <StatusBadge
+                        status={
+                          activeScenario.latestResult?.status ?? "not-run"
+                        }
+                      />
+                      <DialogTitle>{activeScenario.title}</DialogTitle>
+                    </div>
+                    <DialogDescription>
+                      Recent local execution records for this scenario case.
+                    </DialogDescription>
+                  </div>
+                  <DialogClose asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Close dialog"
+                    >
+                      Close
+                    </Button>
+                  </DialogClose>
+                </div>
+              </DialogHeader>
 
-            {historyLoading ? (
-              <div className="rounded-lg border border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
-                Loading history...
-              </div>
-            ) : (
-              <RunHistoryList items={history?.history ?? []} />
-            )}
-          </div>
-        ) : null}
+              {historyLoading ? (
+                <div className="rounded-lg border border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
+                  Loading history...
+                </div>
+              ) : (
+                <RunHistoryList items={history?.history ?? []} />
+              )}
+            </div>
+          ) : null}
 
-        {error && detail ? (
-          <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
-            {error}
-          </div>
-        ) : null}
-      </aside>
-    </div>
+          {error && detail ? (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
+              {error}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
