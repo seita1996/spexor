@@ -15,7 +15,7 @@ export interface RunHistoryItemView {
 export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
   if (props.items.length === 0) {
     return (
-      <section className="rounded-[28px] border border-dashed border-slate-300 bg-white/60 p-6 text-sm text-slate-600">
+      <section className="rounded-xl border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
         This scenario has not been executed yet.
       </section>
     );
@@ -26,15 +26,15 @@ export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
       {props.items.map((item) => (
         <article
           key={item.id}
-          className="rounded-[24px] border border-slate-200/80 bg-white/85 p-4 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.5)]"
+          className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-soft"
         >
           <header className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid gap-2">
               <div className="flex items-center gap-3">
                 <StatusBadge status={item.status} />
-                <span className="text-sm font-medium text-slate-900">{item.testerName}</span>
+                <span className="text-sm font-medium text-foreground">{item.testerName}</span>
               </div>
-              <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+              <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 <span>{new Date(item.createdAt).toLocaleString()}</span>
                 {item.browser ? <span>{item.browser}</span> : null}
                 {item.platform ? <span>{item.platform}</span> : null}
@@ -43,7 +43,7 @@ export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
           </header>
 
           {item.notes ? (
-            <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 ring-1 ring-slate-200">
+            <p className="mt-4 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm leading-6 text-muted-foreground">
               {item.notes}
             </p>
           ) : null}
@@ -53,14 +53,14 @@ export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
               {item.attachments.map((attachment, index) => (
                 <li
                   key={`${item.id}-attachment-${index + 1}`}
-                  className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200"
+                  className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-muted-foreground"
                 >
-                  <span className="mr-2 rounded-full bg-slate-900 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
+                  <span className="mr-2 rounded-full bg-primary px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-primary-foreground">
                     {attachment.kind}
                   </span>
                   {attachment.value}
                   {attachment.label ? (
-                    <span className="ml-2 text-xs text-slate-500">({attachment.label})</span>
+                    <span className="ml-2 text-xs text-muted-foreground">({attachment.label})</span>
                   ) : null}
                 </li>
               ))}

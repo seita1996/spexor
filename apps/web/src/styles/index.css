@@ -4,10 +4,49 @@
 
 :root {
   color-scheme: light;
-  --spexor-sand: #f7f3e8;
-  --spexor-ink: #0f172a;
-  --spexor-teal: #0f766e;
-  --spexor-rust: #b45309;
+  --background: 42 33% 96%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 190 73% 30%;
+  --primary-foreground: 48 33% 98%;
+  --secondary: 210 27% 92%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 40 27% 92%;
+  --muted-foreground: 215 16% 36%;
+  --accent: 34 84% 89%;
+  --accent-foreground: 24 85% 24%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 24% 84%;
+  --input: 214 24% 84%;
+  --ring: 190 73% 30%;
+  --radius: 1rem;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 212 40% 9%;
+  --foreground: 40 33% 96%;
+  --card: 215 32% 12%;
+  --card-foreground: 40 33% 96%;
+  --popover: 215 32% 12%;
+  --popover-foreground: 40 33% 96%;
+  --primary: 185 61% 56%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 216 25% 18%;
+  --secondary-foreground: 40 33% 96%;
+  --muted: 216 24% 16%;
+  --muted-foreground: 214 20% 74%;
+  --accent: 25 58% 28%;
+  --accent-foreground: 40 33% 96%;
+  --destructive: 0 63% 46%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 216 22% 22%;
+  --input: 216 22% 22%;
+  --ring: 185 61% 56%;
 }
 
 html,
@@ -19,11 +58,18 @@ body,
 body {
   margin: 0;
   font-family: "IBM Plex Sans", "Avenir Next", sans-serif;
-  color: var(--spexor-ink);
+  color: hsl(var(--foreground));
   background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 30%),
-    radial-gradient(circle at top right, rgba(180, 83, 9, 0.1), transparent 28%),
-    linear-gradient(180deg, #fbfaf6 0%, #f3efe4 100%);
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.2), transparent 30%),
+    radial-gradient(circle at top right, hsl(var(--accent-foreground) / 0.14), transparent 28%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(40 25% 92%) 100%);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.22), transparent 28%),
+    radial-gradient(circle at top right, hsl(var(--accent) / 0.3), transparent 24%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(220 35% 7%) 100%);
 }
 
 code,
@@ -33,4 +79,23 @@ pre {
 
 a {
   color: inherit;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.25) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.25) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
 }

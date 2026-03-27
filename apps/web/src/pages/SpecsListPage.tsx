@@ -2,6 +2,9 @@ import { useDeferredValue, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { SpecsListItemDto } from "@spexor/app";
 import { FilterBar, MetadataChips, ParseHealthBadge, StatusBadge } from "@spexor/ui";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { getSpecs, syncSpecs } from "../lib/api";
 
 const emptyFilter = {
@@ -76,28 +79,36 @@ export function SpecsListPage() {
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-4 rounded-[36px] bg-slate-950 px-6 py-8 text-white shadow-floaty md:grid-cols-[1.6fr_1fr]">
-        <div className="grid gap-3">
-          <span className="text-xs uppercase tracking-[0.3em] text-teal-200">
-            Git-native manual spec runner
-          </span>
-          <h1 className="max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">
-            Spexor keeps manual execution close to the `.feature` files that define it.
-          </h1>
-          <p className="max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-            Browse the repo-local spec catalog, inspect parse health, and review the latest local
-            manual runs without turning Gherkin into a separate SaaS database.
-          </p>
-        </div>
+      <section className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <Card className="overflow-hidden border-border/60 bg-slate-950 text-slate-50 dark:bg-card">
+          <CardHeader className="gap-3">
+            <Badge
+              variant="secondary"
+              className="w-fit bg-white/10 text-slate-50 dark:bg-secondary dark:text-secondary-foreground"
+            >
+              Git-native manual spec runner
+            </Badge>
+            <CardTitle className="max-w-3xl text-3xl md:text-5xl">
+              Spexor keeps manual execution close to the `.feature` files that define it.
+            </CardTitle>
+            <CardDescription className="max-w-3xl text-sm leading-7 text-slate-300 md:text-base dark:text-muted-foreground">
+              Browse the repo-local spec catalog, inspect parse health, and review the latest
+              local manual runs without turning Gherkin into a separate SaaS database.
+            </CardDescription>
+          </CardHeader>
+        </Card>
 
-        <div className="grid gap-3 rounded-[28px] bg-white/10 p-5 backdrop-blur">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Current catalog</div>
-          <div className="text-3xl font-semibold">{items.length}</div>
-          <div className="text-sm text-slate-300">
-            {items.reduce((count, item) => count + item.scenarioCount, 0)} executable scenario
-            cases
-          </div>
-          <button
+        <Card className="border-border/60 bg-card/85">
+          <CardHeader className="gap-2">
+            <CardDescription className="uppercase tracking-[0.2em]">Current catalog</CardDescription>
+            <CardTitle className="text-4xl">{items.length}</CardTitle>
+            <CardDescription>
+              {items.reduce((count, item) => count + item.scenarioCount, 0)} executable scenario
+              cases
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
             type="button"
             disabled={refreshing}
             onClick={async () => {
@@ -114,11 +125,12 @@ export function SpecsListPage() {
                 setRefreshing(false);
               }
             }}
-            className="mt-4 rounded-full bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70"
+            className="w-full uppercase tracking-[0.18em]"
           >
             {refreshing ? "Rescanning..." : "Rescan specs"}
-          </button>
-        </div>
+            </Button>
+          </CardContent>
+        </Card>
       </section>
 
       <FilterBar
@@ -129,19 +141,19 @@ export function SpecsListPage() {
       />
 
       {error ? (
-        <section className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-900">
+        <section className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-800 dark:text-rose-200">
           {error}
         </section>
       ) : null}
 
       {loading ? (
-        <section className="rounded-[28px] bg-white/70 px-5 py-10 text-center text-sm text-slate-600">
+        <section className="rounded-xl border border-border bg-card/80 px-5 py-10 text-center text-sm text-muted-foreground">
           Loading specs...
         </section>
       ) : null}
 
       {!loading && filteredItems.length === 0 ? (
-        <section className="rounded-[28px] border border-dashed border-slate-300 bg-white/60 px-5 py-10 text-center text-sm text-slate-600">
+        <section className="rounded-xl border border-dashed border-border bg-muted/30 px-5 py-10 text-center text-sm text-muted-foreground">
           No specs matched the current filters.
         </section>
       ) : null}
@@ -151,23 +163,23 @@ export function SpecsListPage() {
           <Link
             key={item.featureId}
             to={`/features/${item.featureId}`}
-            className="rounded-[30px] border border-white/80 bg-white/85 p-5 text-left shadow-floaty transition hover:-translate-y-0.5"
+            className="rounded-xl border border-border/70 bg-card/90 p-5 text-left shadow-soft transition hover:-translate-y-0.5"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="grid gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-semibold text-slate-950">{item.title}</h2>
+                  <h2 className="text-2xl font-semibold text-foreground">{item.title}</h2>
                   <ParseHealthBadge health={item.parseHealth} />
                   <StatusBadge status={item.statusSummary.aggregate ?? "not-run"} />
                 </div>
-                <code className="text-sm text-slate-500">{item.filePath}</code>
-                <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+                <code className="text-sm text-muted-foreground">{item.filePath}</code>
+                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                   <span>{item.scenarioCount} scenario cases</span>
                   {item.metadata.owner ? <span>owner: {item.metadata.owner}</span> : null}
                   {item.metadata.priority ? <span>priority: {item.metadata.priority}</span> : null}
                 </div>
               </div>
-              <div className="rounded-[24px] bg-slate-50 px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200">
+              <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
                 {item.issueCount > 0 ? `${item.issueCount} parse issue(s)` : "Parsing clean"}
               </div>
             </div>

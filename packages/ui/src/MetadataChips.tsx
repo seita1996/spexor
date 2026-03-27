@@ -7,13 +7,13 @@ export function MetadataChips(props: {
 
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.label}
       </span>
       {values.map((value) => (
         <span
           key={`${props.label}-${value}`}
-          className="rounded-full bg-slate-200/80 px-3 py-1 text-xs text-slate-800"
+          className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-secondary-foreground"
         >
           {value}
         </span>

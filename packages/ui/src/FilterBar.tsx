@@ -14,21 +14,21 @@ export function FilterBar(props: {
   onChange: (next: SpecsFilterValue) => void;
 }) {
   return (
-    <section className="grid gap-4 rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.55)] backdrop-blur md:grid-cols-[2fr_1fr_1fr_1fr]">
-      <label className="grid gap-2 text-sm text-slate-700">
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-card/90 p-5 shadow-soft backdrop-blur md:grid-cols-[2fr_1fr_1fr_1fr]">
+      <label className="grid gap-2 text-sm text-foreground">
         Search
         <input
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-teal-500 focus:bg-white"
+          className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.search}
           onChange={(event) => props.onChange({ ...props.value, search: event.target.value })}
           placeholder="Find specs, scenarios, owners, or notes"
         />
       </label>
 
-      <label className="grid gap-2 text-sm text-slate-700">
+      <label className="grid gap-2 text-sm text-foreground">
         Tag
         <select
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-teal-500 focus:bg-white"
+          className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.tag}
           onChange={(event) => props.onChange({ ...props.value, tag: event.target.value })}
         >
@@ -41,10 +41,10 @@ export function FilterBar(props: {
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm text-slate-700">
+      <label className="grid gap-2 text-sm text-foreground">
         Browser
         <select
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-teal-500 focus:bg-white"
+          className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.browser}
           onChange={(event) => props.onChange({ ...props.value, browser: event.target.value })}
         >
@@ -57,10 +57,10 @@ export function FilterBar(props: {
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm text-slate-700">
+      <label className="grid gap-2 text-sm text-foreground">
         Priority
         <select
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-teal-500 focus:bg-white"
+          className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
           value={props.value.priority}
           onChange={(event) =>
             props.onChange({

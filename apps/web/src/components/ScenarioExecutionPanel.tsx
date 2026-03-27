@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type { RecordScenarioResultInput, RunStatus } from "@spexor/app";
 import { StatusBadge } from "@spexor/ui";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Select } from "./ui/select";
+import { Textarea } from "./ui/textarea";
 
 interface EvidenceDraft {
   kind: "file" | "url";
@@ -56,114 +61,113 @@ export function ScenarioExecutionPanel(props: {
         });
       }}
     >
-      <header className="grid gap-2">
-        <div className="flex items-center gap-3">
-          <StatusBadge status={status} />
-          <h3 className="text-lg font-semibold text-slate-950">{props.scenarioTitle}</h3>
-        </div>
-        <p className="text-sm leading-6 text-slate-600">
-          Record a local manual execution. Spexor stores the result in SQLite and keeps the
-          spec itself unchanged.
-        </p>
-      </header>
+      <Card className="border-border/70 bg-card/80 shadow-none">
+        <CardHeader className="p-0">
+          <div className="flex items-center gap-3">
+            <StatusBadge status={status} />
+            <CardTitle className="text-lg">{props.scenarioTitle}</CardTitle>
+          </div>
+          <CardDescription className="leading-6">
+            Record a local manual execution. Spexor stores the result in SQLite and keeps the
+            spec itself unchanged.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
-      <label className="grid gap-2 text-sm text-slate-700">
+      <label className="grid gap-2 text-sm text-foreground">
         Tester name
-        <input
+        <Input
           required
           value={testerName}
           onChange={(event) => setTesterName(event.target.value)}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
           placeholder="qa@example.com"
         />
       </label>
 
       {props.browsers.length > 0 ? (
-        <label className="grid gap-2 text-sm text-slate-700">
+        <label className="grid gap-2 text-sm text-foreground">
           Browser
-          <select
+          <Select
             value={browser}
             onChange={(event) => setBrowser(event.target.value)}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
           >
             {props.browsers.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : null}
 
       {props.platforms.length > 0 ? (
-        <label className="grid gap-2 text-sm text-slate-700">
+        <label className="grid gap-2 text-sm text-foreground">
           Platform
-          <select
+          <Select
             value={platform}
             onChange={(event) => setPlatform(event.target.value)}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
           >
             {props.platforms.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : null}
 
-      <fieldset className="grid gap-2 rounded-[24px] border border-slate-200 bg-white p-4">
-        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <fieldset className="grid gap-2 rounded-xl border border-border bg-card/80 p-4">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Status
         </legend>
         <div className="grid grid-cols-2 gap-2">
           {statusOptions.map((option) => (
-            <button
+            <Button
               key={option}
               type="button"
               onClick={() => setStatus(option)}
-              className={`rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
-                status === option
-                  ? "bg-slate-950 text-white"
-                  : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-              }`}
+              variant={status === option ? "default" : "outline"}
+              className="justify-start capitalize"
             >
               {option}
-            </button>
+            </Button>
           ))}
         </div>
       </fieldset>
 
-      <label className="grid gap-2 text-sm text-slate-700">
+      <label className="grid gap-2 text-sm text-foreground">
         Notes
-        <textarea
+        <Textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
-          className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+          className="min-h-32"
           placeholder="Observed behavior, setup notes, or blockers"
         />
       </label>
 
-      <section className="grid gap-3 rounded-[24px] border border-slate-200 bg-white p-4">
+      <Card className="border-border bg-card/80 shadow-none">
+        <CardContent className="grid gap-3 p-4">
         <header className="flex items-center justify-between gap-3">
           <div>
-            <h4 className="text-sm font-semibold text-slate-950">Evidence references</h4>
-            <p className="text-xs text-slate-500">Store local file paths or URLs only.</p>
+            <h4 className="text-sm font-semibold text-foreground">Evidence references</h4>
+            <p className="text-xs text-muted-foreground">Store local file paths or URLs only.</p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() =>
               setAttachments((current) => [...current, { kind: "file", value: "", label: "" }])
             }
-            className="rounded-full border border-slate-300 px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-700"
+            variant="outline"
+            size="sm"
+            className="uppercase tracking-[0.16em]"
           >
             Add ref
-          </button>
+          </Button>
         </header>
 
         {attachments.map((attachment, index) => (
           <div key={`attachment-${index + 1}`} className="grid gap-2 md:grid-cols-[120px_1fr_1fr]">
-            <select
+            <Select
               value={attachment.kind}
               onChange={(event) =>
                 setAttachments((current) =>
@@ -174,12 +178,11 @@ export function ScenarioExecutionPanel(props: {
                   )
                 )
               }
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
             >
               <option value="file">file</option>
               <option value="url">url</option>
-            </select>
-            <input
+            </Select>
+            <Input
               value={attachment.value}
               onChange={(event) =>
                 setAttachments((current) =>
@@ -188,10 +191,9 @@ export function ScenarioExecutionPanel(props: {
                   )
                 )
               }
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
               placeholder={attachment.kind === "file" ? "/tmp/screenshot.png" : "https://example.com/log"}
             />
-            <input
+            <Input
               value={attachment.label}
               onChange={(event) =>
                 setAttachments((current) =>
@@ -200,26 +202,26 @@ export function ScenarioExecutionPanel(props: {
                   )
                 )
               }
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
               placeholder="Optional label"
             />
           </div>
         ))}
-      </section>
+        </CardContent>
+      </Card>
 
       {props.saveError ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
           {props.saveError}
         </div>
       ) : null}
 
-      <button
+      <Button
         type="submit"
         disabled={props.isSaving}
-        className="rounded-full bg-teal-700 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-slate-950 disabled:cursor-wait disabled:opacity-70"
+        className="uppercase tracking-[0.18em]"
       >
         {props.isSaving ? "Saving..." : "Save result"}
-      </button>
+      </Button>
     </form>
   );
 }
