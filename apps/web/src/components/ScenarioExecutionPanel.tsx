@@ -22,6 +22,7 @@ interface EvidenceDraft {
 
 const statusOptions: RunStatus[] = ["passed", "failed", "blocked", "skipped"];
 let evidenceDraftCount = 0;
+const testerNameStorageKey = "spexor.testerName";
 
 function createEvidenceDraft(): EvidenceDraft {
   evidenceDraftCount += 1;
@@ -42,7 +43,13 @@ export function ScenarioExecutionPanel(props: {
   saveError?: string | null;
   onSubmit: (input: RecordScenarioResultInput) => Promise<void>;
 }) {
-  const [testerName, setTesterName] = useState("");
+  const [testerName, setTesterName] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return window.localStorage.getItem(testerNameStorageKey) ?? "";
+  });
   const [browser, setBrowser] = useState(props.browsers[0] ?? "");
   const [platform, setPlatform] = useState(props.platforms[0] ?? "");
   const [status, setStatus] = useState<RunStatus>("passed");
@@ -56,7 +63,11 @@ export function ScenarioExecutionPanel(props: {
   const notesInputId = `${props.scenarioId}-notes`;
 
   useEffect(() => {
-    setTesterName("");
+    setTesterName(
+      typeof window === "undefined"
+        ? ""
+        : (window.localStorage.getItem(testerNameStorageKey) ?? "")
+    );
     setBrowser(props.browsers[0] ?? "");
     setPlatform(props.platforms[0] ?? "");
     setStatus("passed");
@@ -69,8 +80,12 @@ export function ScenarioExecutionPanel(props: {
       className="grid gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(testerNameStorageKey, testerName.trim());
+        }
+
         await props.onSubmit({
-          testerName,
+          testerName: testerName.trim(),
           browser: browser || undefined,
           platform: platform || undefined,
           status,
@@ -92,8 +107,8 @@ export function ScenarioExecutionPanel(props: {
             <CardTitle className="text-lg">{props.scenarioTitle}</CardTitle>
           </div>
           <CardDescription className="leading-6">
-            Record a local manual execution. Spexor stores the result in SQLite
-            and keeps the spec itself unchanged.
+            Save the result for the scenario you just tested. Spexor stores the
+            run in SQLite and leaves the `.feature` file untouched.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -102,13 +117,13 @@ export function ScenarioExecutionPanel(props: {
         htmlFor={testerNameInputId}
         className="grid gap-2 text-sm text-foreground"
       >
-        Tester name
+        Tester or developer
         <Input
           id={testerNameInputId}
           required
           value={testerName}
           onChange={(event) => setTesterName(event.target.value)}
-          placeholder="qa@example.com"
+          placeholder="Your name or email"
         />
       </label>
 
@@ -193,7 +208,8 @@ export function ScenarioExecutionPanel(props: {
                 Evidence references
               </h4>
               <p className="text-xs text-muted-foreground">
-                Store local file paths or URLs only.
+                Keep links to screenshots, logs, or local files that support
+                this result.
               </p>
             </div>
             <Button

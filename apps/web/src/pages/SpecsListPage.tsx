@@ -98,6 +98,17 @@ export function SpecsListPage() {
     return matchesSearch && matchesTag && matchesBrowser && matchesPriority;
   });
 
+  const totalScenarioCount = items.reduce(
+    (count, item) => count + item.scenarioCount,
+    0
+  );
+  const activeFilterCount = [
+    filters.search.trim(),
+    filters.tag,
+    filters.browser,
+    filters.priority
+  ].filter(Boolean).length;
+
   return (
     <div className="grid gap-6">
       <section className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
@@ -110,14 +121,26 @@ export function SpecsListPage() {
               Git-native manual spec runner
             </Badge>
             <CardTitle className="max-w-3xl text-3xl md:text-5xl">
-              Spexor keeps manual execution close to the `.feature` files that
-              define it.
+              Find the right spec, confirm the scenario, then record the result
+              in one pass.
             </CardTitle>
             <CardDescription className="max-w-3xl text-sm leading-7 text-slate-300 md:text-base dark:text-muted-foreground">
-              Browse the repo-local spec catalog, inspect parse health, and
-              review the latest local manual runs without turning Gherkin into a
-              separate SaaS database.
+              Start from the spec list the way testers and developers usually
+              think: narrow the target, open the feature, inspect steps and last
+              outcome, then save a new manual run without editing the source
+              file.
             </CardDescription>
+            <div className="grid gap-2 text-sm text-slate-200 md:grid-cols-3 dark:text-muted-foreground">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                1. Filter by tag, browser, owner, or path
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                2. Open a feature to review steps and recent results
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                3. Record the outcome for the scenario you just tested
+              </div>
+            </div>
           </CardHeader>
         </Card>
 
@@ -128,8 +151,7 @@ export function SpecsListPage() {
             </CardDescription>
             <CardTitle className="text-4xl">{items.length}</CardTitle>
             <CardDescription>
-              {items.reduce((count, item) => count + item.scenarioCount, 0)}{" "}
-              executable scenario cases
+              {totalScenarioCount} executable scenario cases
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -167,6 +189,32 @@ export function SpecsListPage() {
         onChange={setFilters}
       />
 
+      <Card className="border-border/70 bg-card/80">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="grid gap-1">
+            <div className="text-sm font-medium text-foreground">
+              {filteredItems.length} feature
+              {filteredItems.length === 1 ? "" : "s"} match
+              {filteredItems.length === 1 ? "es" : ""}
+              {activeFilterCount > 0 ? ` your ${activeFilterCount} filter` : ""}
+              .
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Open any result to review steps, latest status, and run history.
+            </div>
+          </div>
+          {activeFilterCount > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFilters(emptyFilter)}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {error ? (
         <section className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-800 dark:text-rose-200">
           {error}
@@ -181,7 +229,8 @@ export function SpecsListPage() {
 
       {!loading && filteredItems.length === 0 ? (
         <section className="rounded-xl border border-dashed border-border bg-muted/30 px-5 py-10 text-center text-sm text-muted-foreground">
-          No specs matched the current filters.
+          No specs matched the current filters. Try clearing filters or search
+          by feature path, owner, or tag.
         </section>
       ) : null}
 
@@ -230,6 +279,15 @@ export function SpecsListPage() {
                 label="Platforms"
                 values={item.metadata.platforms}
               />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+              <span className="text-muted-foreground">
+                {item.latestResults[0]
+                  ? `Last result by ${item.latestResults[0].testerName}`
+                  : "No recorded result yet"}
+              </span>
+              <span className="font-medium text-foreground">Open feature</span>
             </div>
           </Link>
         ))}

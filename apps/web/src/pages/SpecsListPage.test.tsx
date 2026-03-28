@@ -80,6 +80,7 @@ describe("SpecsListPage", () => {
 
     await screen.findByText("Login");
     expect(screen.getByText("Cart")).toBeInTheDocument();
+    expect(screen.getAllByText("Open feature")).toHaveLength(2);
 
     await userEvent.selectOptions(screen.getByLabelText("Tag"), "auth");
 
@@ -87,5 +88,7 @@ describe("SpecsListPage", () => {
       expect(screen.getByText("Login")).toBeInTheDocument();
       expect(screen.queryByText("Cart")).not.toBeInTheDocument();
     });
+
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
   });
 });

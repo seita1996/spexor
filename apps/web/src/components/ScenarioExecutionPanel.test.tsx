@@ -5,6 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { ScenarioExecutionPanel } from "./ScenarioExecutionPanel";
 
 describe("ScenarioExecutionPanel", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("submits a manual run payload", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
 
@@ -20,7 +24,7 @@ describe("ScenarioExecutionPanel", () => {
     );
 
     await userEvent.type(
-      screen.getByLabelText("Tester name"),
+      screen.getByLabelText("Tester or developer"),
       "qa@example.com"
     );
     await userEvent.type(
@@ -53,5 +57,27 @@ describe("ScenarioExecutionPanel", () => {
         }
       ]
     });
+    expect(window.localStorage.getItem("spexor.testerName")).toBe(
+      "qa@example.com"
+    );
+  });
+
+  it("prefills the last tester name from local storage", () => {
+    window.localStorage.setItem("spexor.testerName", "dev@example.com");
+
+    render(
+      <ScenarioExecutionPanel
+        scenarioId="spec::login::1"
+        scenarioTitle="Login with valid credentials"
+        browsers={["chrome"]}
+        platforms={["mac"]}
+        isSaving={false}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    expect(screen.getByLabelText("Tester or developer")).toHaveValue(
+      "dev@example.com"
+    );
   });
 });
