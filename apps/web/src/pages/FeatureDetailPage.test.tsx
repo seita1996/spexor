@@ -73,12 +73,17 @@ describe("FeatureDetailPage", () => {
     );
 
     await screen.findByText("Login");
+    expect(
+      screen.getByText(
+        "Use Run on the scenario you executed and save the outcome."
+      )
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Run" }));
 
     expect(
-      await screen.findByRole("dialog", { name: "Record run" })
+      await screen.findByRole("dialog", { name: "Record test result" })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Tester name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tester or developer")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
 
@@ -168,6 +173,11 @@ describe("FeatureDetailPage", () => {
       await screen.findByRole("dialog", {
         name: "Login with valid credentials"
       })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Review earlier runs for this scenario before recording a new result."
+      )
     ).toBeInTheDocument();
     expect(getScenarioHistoryMock).toHaveBeenCalledWith("scenario-1");
   });

@@ -30,7 +30,17 @@ export function ScenarioGroups(props: {
   onHistory: (scenarioId: string) => void;
 }) {
   return (
-    <div className="grid gap-4">
+    <section className="grid gap-4">
+      <header className="grid gap-2">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Scenario checklist
+        </h2>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          Review the case steps, check what happened last time, then use Run to
+          record the outcome you just observed.
+        </p>
+      </header>
+
       {props.groups.map((group) => (
         <article
           key={group.id}
@@ -78,6 +88,11 @@ export function ScenarioGroups(props: {
                           {scenarioCase.description}
                         </p>
                       ) : null}
+                      <div className="text-sm text-muted-foreground">
+                        {scenarioCase.latestLabel
+                          ? `Last recorded by ${scenarioCase.latestLabel}`
+                          : "No result recorded yet"}
+                      </div>
                       {scenarioCase.exampleValues ? (
                         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                           {Object.entries(scenarioCase.exampleValues).map(
@@ -129,6 +144,6 @@ export function ScenarioGroups(props: {
           </div>
         </article>
       ))}
-    </div>
+    </section>
   );
 }

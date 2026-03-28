@@ -209,6 +209,35 @@ export function FeatureDetailPage() {
               ) : null}
             </div>
 
+            <div className="grid gap-3 rounded-xl border border-border bg-muted/35 p-4 md:grid-cols-3">
+              <div className="grid gap-1">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Step 1
+                </div>
+                <div className="text-sm text-foreground">
+                  Read the background and scenario steps to confirm what to
+                  test.
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Step 2
+                </div>
+                <div className="text-sm text-foreground">
+                  Open History when you need the previous result or tester
+                  notes.
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Step 3
+                </div>
+                <div className="text-sm text-foreground">
+                  Use Run on the scenario you executed and save the outcome.
+                </div>
+              </div>
+            </div>
+
             <IssueList issues={detail.issues} />
           </CardContent>
         </Card>
@@ -284,10 +313,10 @@ export function FeatureDetailPage() {
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div className="grid gap-2">
-                    <DialogTitle>Record run</DialogTitle>
+                    <DialogTitle>Record test result</DialogTitle>
                     <DialogDescription>
-                      Capture a local execution result for this scenario without
-                      editing the `.feature` file.
+                      Capture the outcome for this scenario without editing the
+                      `.feature` file.
                     </DialogDescription>
                   </div>
                   <DialogClose asChild>
@@ -353,7 +382,8 @@ export function FeatureDetailPage() {
                       <DialogTitle>{activeScenario.title}</DialogTitle>
                     </div>
                     <DialogDescription>
-                      Recent local execution records for this scenario case.
+                      Review earlier runs for this scenario before recording a
+                      new result.
                     </DialogDescription>
                   </div>
                   <DialogClose asChild>
