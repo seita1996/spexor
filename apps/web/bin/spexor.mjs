@@ -4,37 +4,86 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  deployAwsHub,
+  deployCloudflareHub,
+  printHelp,
+  setupProject
+} from "./cli-lib.mjs";
 
 const require = createRequire(import.meta.url);
 const binDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(binDir, "..");
-const command = process.argv[2] ?? "dev";
+const args = process.argv.slice(2);
+const command = args[0] ?? "dev";
 const projectRoot = process.cwd();
 const env = {
   ...process.env,
   SPEXOR_PROJECT_ROOT: projectRoot
 };
 
-switch (command) {
-  case "dev":
-    runDev();
-    break;
-  case "api":
-    runSingleProcess([
-      "--import",
-      "tsx",
-      path.join(packageRoot, "server/index.ts")
-    ]);
-    break;
-  case "help":
-  case "--help":
-  case "-h":
-    printHelp();
-    break;
-  default:
-    console.error(`[spexor] unknown command: ${command}`);
+await main();
+
+async function main() {
+  switch (command) {
+    case "dev":
+      runDev();
+      return;
+    case "api":
+      runSingleProcess([
+        "--import",
+        "tsx",
+        path.join(packageRoot, "server/index.ts")
+      ]);
+      return;
+    case "setup": {
+      const result = await setupProject({ projectRoot });
+      if (result.created.length === 0) {
+        console.log("[spexor] project already initialized");
+      } else {
+        console.log("[spexor] created:");
+        for (const created of result.created) {
+          console.log(`  - ${created}`);
+        }
+      }
+      return;
+    }
+    case "hub":
+      await handleHubCommand(args.slice(1));
+      return;
+    case "help":
+    case "--help":
+    case "-h":
+      printHelp();
+      return;
+    default:
+      console.error(`[spexor] unknown command: ${command}`);
+      printHelp();
+      process.exit(1);
+  }
+}
+
+async function handleHubCommand(subcommandArgs) {
+  const action = subcommandArgs[0];
+  const provider = subcommandArgs[1];
+
+  if (action !== "deploy" || !provider) {
     printHelp();
     process.exit(1);
+  }
+
+  switch (provider) {
+    case "cloudflare":
+      await deployCloudflareHub({ projectRoot });
+      return;
+    case "aws":
+      await deployAwsHub({ projectRoot });
+      return;
+    default:
+      console.error(`[spexor] unknown hub provider: ${provider}`);
+      printHelp();
+      process.exit(1);
+  }
 }
 
 function runDev() {
@@ -91,13 +140,4 @@ function runSingleProcess(args) {
   child.on("exit", (code) => {
     process.exit(code ?? 0);
   });
-}
-
-function printHelp() {
-  console.log(`Spexor
-
-Usage:
-  spexor dev   Start the local Spexor GUI for the current project
-  spexor api   Start only the local API server for the current project
-`);
 }

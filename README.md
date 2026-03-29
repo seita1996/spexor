@@ -55,6 +55,12 @@ Then run:
 npx spexor dev
 ```
 
+Bootstrap a repository with the default config and starter spec:
+
+```bash
+npx spexor setup
+```
+
 If the target project has no config yet, Spexor defaults to `./specs/manual`, `./.spexor/spexor.db`, and `./.spexor/evidence` relative to that project root.
 
 ## Add your own specs
@@ -84,6 +90,17 @@ export default {
 
 Execution history persists in `.spexor/spexor.db` across restarts.
 
+## Shared hub deployment
+
+Spexor can scaffold and deploy the low-cost shared results hub from the CLI.
+
+```bash
+npx spexor hub deploy cloudflare
+npx spexor hub deploy aws
+```
+
+The Cloudflare flow scaffolds a Worker + D1 project under `.spexor/results-hub/cloudflare`. The AWS flow scaffolds a CDK app for Lambda + S3 under `.spexor/results-hub/aws`.
+
 ## Docs
 
 ## Harness
@@ -98,5 +115,7 @@ Codex-centered development in this repository uses deterministic harness command
 - [Agent instructions](/Users/tahara/Documents/prj/spexor/AGENTS.md)
 - [ADR 0001: Codex harness baseline](/Users/tahara/Documents/prj/spexor/docs/adr/0001-codex-harness-baseline.md)
 - [ADR 0002: Codex turn-boundary guardrails](/Users/tahara/Documents/prj/spexor/docs/adr/0002-codex-turn-boundary-guardrails.md)
+- [ADR 0003: Low-cost shared results hub](/Users/tahara/Documents/prj/spexor/docs/adr/0003-low-cost-shared-results-hub.md)
+- [ADR 0004: CLI setup and hub deploy](/Users/tahara/Documents/prj/spexor/docs/adr/0004-cli-setup-and-hub-deploy.md)
 - [Spec format](/Users/tahara/Documents/prj/spexor/docs/spec-format.md)
 - [Local data model](/Users/tahara/Documents/prj/spexor/docs/local-data-model.md)
