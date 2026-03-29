@@ -1,25 +1,24 @@
 {
-  "name": "@spexor/app",
+  "name": "@spexor/results-hub",
   "version": "0.1.0",
   "type": "module",
   "files": [
-    "src"
+    "src",
+    "schema.sql",
+    "wrangler.toml"
   ],
   "publishConfig": {
     "access": "public"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./cloudflare": "./src/cloudflare.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@spexor/config": "workspace:*",
-    "@spexor/db": "workspace:*",
     "@spexor/domain": "workspace:*",
-    "@spexor/parser": "workspace:*",
-    "@spexor/results": "workspace:*",
-    "chokidar": "^4.0.3"
+    "@spexor/results": "workspace:*"
   }
 }

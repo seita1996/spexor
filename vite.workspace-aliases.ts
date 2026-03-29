@@ -9,5 +9,6 @@ export const workspaceAliases = {
   "@spexor/db": path.resolve(rootDir, "packages/db/src"),
   "@spexor/domain": path.resolve(rootDir, "packages/domain/src"),
   "@spexor/parser": path.resolve(rootDir, "packages/parser/src"),
+  "@spexor/results": path.resolve(rootDir, "packages/results/src"),
   "@spexor/ui": path.resolve(rootDir, "packages/ui/src")
 };

@@ -14,6 +14,7 @@ describe("@spexor/config", () => {
     expect(config.specDir).toBe("./specs/manual");
     expect(config.dbPath).toBe("./.spexor/spexor.db");
     expect(config.specDirAbs).toBe(path.resolve(tempRoot, "./specs/manual"));
+    expect(config.sharedResults).toBeUndefined();
   });
 
   it("loads a custom spexor.config.ts file", async () => {
@@ -26,7 +27,10 @@ describe("@spexor/config", () => {
         specDir: "./specs/manual",
         dbPath: "./tmp/history.db",
         evidenceDir: "./tmp/evidence",
-        autoScan: false
+        autoScan: false,
+        sharedResults: {
+          baseUrl: "https://results.example.com"
+        }
       };`,
       "utf8"
     );
@@ -36,6 +40,10 @@ describe("@spexor/config", () => {
     expect(config.specDirAbs).toBe(path.resolve(tempRoot, "specs/manual"));
     expect(config.dbPathAbs).toBe(path.resolve(tempRoot, "tmp/history.db"));
     expect(config.autoScan).toBe(false);
+    expect(config.sharedResults?.baseUrl).toBe("https://results.example.com");
+    expect(config.sharedResults?.projectId).toBe(
+      path.basename(tempRoot).toLowerCase()
+    );
   });
 
   it("resolves paths from a partial config object", () => {

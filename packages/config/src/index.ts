@@ -1,13 +1,25 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { defaultProjectId } from "@spexor/results";
 import { z } from "zod";
+
+export interface SpexorSharedResultsConfig {
+  baseUrl: string;
+  projectId?: string | undefined;
+}
 
 export interface SpexorConfig {
   specDir: string;
   dbPath: string;
   evidenceDir: string;
   autoScan: boolean;
+  sharedResults?: SpexorSharedResultsConfig | undefined;
+}
+
+export interface ResolvedSpexorSharedResultsConfig {
+  baseUrl: string;
+  projectId: string;
 }
 
 export interface ResolvedSpexorConfig extends SpexorConfig {
@@ -16,6 +28,7 @@ export interface ResolvedSpexorConfig extends SpexorConfig {
   specDirAbs: string;
   dbPathAbs: string;
   evidenceDirAbs: string;
+  sharedResults?: ResolvedSpexorSharedResultsConfig | undefined;
 }
 
 const defaultConfig: SpexorConfig = {
@@ -30,7 +43,13 @@ const configSchema = z
     specDir: z.string().min(1).default(defaultConfig.specDir),
     dbPath: z.string().min(1).default(defaultConfig.dbPath),
     evidenceDir: z.string().min(1).default(defaultConfig.evidenceDir),
-    autoScan: z.boolean().default(defaultConfig.autoScan)
+    autoScan: z.boolean().default(defaultConfig.autoScan),
+    sharedResults: z
+      .object({
+        baseUrl: z.string().url(),
+        projectId: z.string().min(1).optional()
+      })
+      .optional()
   })
   .passthrough();
 
@@ -76,7 +95,13 @@ export function resolveConfigPaths(
     configPath,
     specDirAbs: path.resolve(rootDir, parsed.specDir),
     dbPathAbs: path.resolve(rootDir, parsed.dbPath),
-    evidenceDirAbs: path.resolve(rootDir, parsed.evidenceDir)
+    evidenceDirAbs: path.resolve(rootDir, parsed.evidenceDir),
+    sharedResults: parsed.sharedResults
+      ? {
+          baseUrl: parsed.sharedResults.baseUrl,
+          projectId: parsed.sharedResults.projectId ?? defaultProjectId(rootDir)
+        }
+      : undefined
   };
 }
 

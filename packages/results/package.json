@@ -1,5 +1,5 @@
 {
-  "name": "@spexor/app",
+  "name": "@spexor/results",
   "version": "0.1.0",
   "type": "module",
   "files": [
@@ -15,11 +15,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@spexor/config": "workspace:*",
-    "@spexor/db": "workspace:*",
-    "@spexor/domain": "workspace:*",
-    "@spexor/parser": "workspace:*",
-    "@spexor/results": "workspace:*",
-    "chokidar": "^4.0.3"
+    "@spexor/domain": "workspace:*"
   }
 }

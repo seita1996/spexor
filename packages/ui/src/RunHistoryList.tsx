@@ -12,11 +12,14 @@ export interface RunHistoryItemView {
   attachments: EvidenceRef[];
 }
 
-export function RunHistoryList(props: { items: RunHistoryItemView[] }) {
+export function RunHistoryList(props: {
+  items: RunHistoryItemView[];
+  emptyMessage?: string | undefined;
+}) {
   if (props.items.length === 0) {
     return (
       <section className="rounded-xl border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
-        This scenario has not been executed yet.
+        {props.emptyMessage ?? "This scenario has not been executed yet."}
       </section>
     );
   }

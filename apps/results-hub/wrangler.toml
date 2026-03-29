@@ -1,0 +1,8 @@
+name = "spexor-results-hub"
+main = "src/cloudflare.ts"
+compatibility_date = "2026-03-30"
+
+[[d1_databases]]
+binding = "RESULTS_DB"
+database_name = "spexor-results-hub"
+database_id = "replace-me"

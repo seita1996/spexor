@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@spexor/results": "workspace:*",
     "zod": "^3.24.2"
   }
 }

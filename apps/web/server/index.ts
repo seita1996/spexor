@@ -34,6 +34,20 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, { sync, items });
     }
 
+    if (
+      request.method === "GET" &&
+      pathname === "/api/exports/results.ndjson"
+    ) {
+      const exportPayload = await spexor.exportRunResultsNdjson();
+      response.writeHead(200, {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "X-Spexor-Project-Id": exportPayload.projectId,
+        "X-Spexor-Exported-At": exportPayload.exportedAt
+      });
+      response.end(exportPayload.ndjson);
+      return;
+    }
+
     if (request.method === "GET" && pathname.startsWith("/api/features/")) {
       const featureId = decodeURIComponent(
         pathname.slice("/api/features/".length)

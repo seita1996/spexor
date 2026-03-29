@@ -404,7 +404,45 @@ export function FeatureDetailPage() {
                   Loading history...
                 </div>
               ) : (
-                <RunHistoryList items={history?.history ?? []} />
+                <div className="grid gap-6">
+                  <section className="grid gap-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Local history
+                    </div>
+                    <RunHistoryList
+                      items={history?.history ?? []}
+                      emptyMessage="This scenario has not been executed locally yet."
+                    />
+                  </section>
+
+                  {history?.sharedHistoryEnabled ? (
+                    <section className="grid gap-3">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Shared history
+                      </div>
+
+                      {history.sharedHistoryError ? (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                          {history.sharedHistoryError}
+                        </div>
+                      ) : null}
+
+                      <RunHistoryList
+                        items={history.sharedHistory.map((item) => ({
+                          id: item.eventId,
+                          status: item.status,
+                          testerName: item.testerName,
+                          createdAt: item.createdAt,
+                          notes: item.notes,
+                          browser: item.browser,
+                          platform: item.platform,
+                          attachments: item.attachments
+                        }))}
+                        emptyMessage="No shared history has been imported for this scenario yet."
+                      />
+                    </section>
+                  ) : null}
+                </div>
               )}
             </div>
           ) : null}

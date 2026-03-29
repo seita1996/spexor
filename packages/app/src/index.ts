@@ -14,6 +14,13 @@ import {
   summarizeLatestStatuses
 } from "@spexor/domain";
 import { parseSpecFile, scanSpecFiles } from "@spexor/parser";
+import {
+  buildSharedRunEvent,
+  defaultProjectId,
+  fetchSharedScenarioResults,
+  stringifySharedRunEventsNdjson,
+  type SharedRunEvent
+} from "@spexor/results";
 import chokidar, { type FSWatcher } from "chokidar";
 
 export interface SpecsListItemDto {
@@ -72,6 +79,16 @@ export interface ScenarioHistoryDto {
   scenarioTitle: string;
   featureId: string;
   history: LatestScenarioResult[];
+  sharedHistoryEnabled: boolean;
+  sharedHistory: SharedRunEvent[];
+  sharedHistoryError?: string | undefined;
+}
+
+export interface RunResultsExportDto {
+  projectId: string;
+  exportedAt: string;
+  itemCount: number;
+  ndjson: string;
 }
 
 export interface SpexorHealthDto {
@@ -82,6 +99,12 @@ export interface SpexorHealthDto {
     dbPath: string;
     evidenceDir: string;
     autoScan: boolean;
+    sharedResults?:
+      | {
+          baseUrl: string;
+          projectId: string;
+        }
+      | undefined;
   };
 }
 
@@ -91,6 +114,7 @@ export interface SpexorApp {
   getSpecsList(): Promise<SpecsListItemDto[]>;
   getFeatureDetail(featureId: string): Promise<FeatureDetailDto | null>;
   getScenarioHistory(scenarioId: string): Promise<ScenarioHistoryDto | null>;
+  exportRunResultsNdjson(): Promise<RunResultsExportDto>;
   recordScenarioResult(
     scenarioId: string,
     input: RecordScenarioResultInput
@@ -278,11 +302,61 @@ export async function createSpexorApp(
         return null;
       }
 
+      let sharedHistory: SharedRunEvent[] = [];
+      let sharedHistoryError: string | undefined;
+
+      if (config.sharedResults) {
+        try {
+          sharedHistory = await fetchSharedScenarioResults(
+            config.sharedResults,
+            scenarioId
+          );
+        } catch (error) {
+          sharedHistoryError =
+            error instanceof Error
+              ? error.message
+              : "Failed to load shared scenario history.";
+        }
+      }
+
       return {
         scenarioId,
         scenarioTitle: scenario.title,
         featureId: scenario.featureKey,
-        history: database.getScenarioRunHistory(scenarioId)
+        history: database.getScenarioRunHistory(scenarioId),
+        sharedHistoryEnabled: Boolean(config.sharedResults),
+        sharedHistory,
+        sharedHistoryError
+      };
+    },
+    async exportRunResultsNdjson() {
+      const exportedAt = new Date().toISOString();
+      const projectId =
+        config.sharedResults?.projectId ?? defaultProjectId(config.rootDir);
+      const events = database.getRecordedRuns().map((record) =>
+        buildSharedRunEvent({
+          eventId: record.id,
+          projectId,
+          featureId: record.featureKey,
+          scenarioKey: record.scenarioKey,
+          scenarioTitle: record.scenarioTitle,
+          runId: record.runId,
+          testerName: record.testerName,
+          browser: record.browser,
+          platform: record.platform,
+          status: record.status,
+          notes: record.notes,
+          createdAt: record.createdAt,
+          attachments: record.attachments,
+          exportedAt
+        })
+      );
+
+      return {
+        projectId,
+        exportedAt,
+        itemCount: events.length,
+        ndjson: stringifySharedRunEventsNdjson(events)
       };
     },
     async recordScenarioResult(scenarioId, input) {
@@ -318,7 +392,8 @@ export async function createSpexorApp(
           specDir: config.specDir,
           dbPath: config.dbPath,
           evidenceDir: config.evidenceDir,
-          autoScan: config.autoScan
+          autoScan: config.autoScan,
+          sharedResults: config.sharedResults
         }
       };
     },

@@ -74,6 +74,12 @@ export interface ScenarioHistoryEntry extends LatestScenarioResult {
   scenarioKey: string;
 }
 
+export interface RecordedRunRecord extends LatestScenarioResult {
+  scenarioKey: string;
+  featureKey: string;
+  scenarioTitle: string;
+}
+
 export interface RecordScenarioRunInput {
   scenarioKey: string;
   featureKey: string;
@@ -99,6 +105,7 @@ export interface SpexorDatabase {
     scenarioKey: string,
     limit?: number
   ): ScenarioHistoryEntry[];
+  getRecordedRuns(limit?: number): RecordedRunRecord[];
   recordScenarioRun(input: RecordScenarioRunInput): ScenarioHistoryEntry;
 }
 
@@ -154,6 +161,8 @@ interface LatestResultRow {
   result_id: unknown;
   run_id: unknown;
   scenario_key: unknown;
+  feature_key: unknown;
+  scenario_title: unknown;
   status: unknown;
   notes: unknown;
   created_at: unknown;
@@ -406,6 +415,8 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           rr.id AS result_id,
           rr.run_id,
           rr.scenario_key,
+          runs.feature_key,
+          COALESCE(s.title, rr.scenario_key) AS scenario_title,
           rr.status,
           rr.notes,
           rr.created_at,
@@ -414,6 +425,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           runs.platform
         FROM run_results rr
         INNER JOIN runs ON runs.id = rr.run_id
+        LEFT JOIN scenarios s ON s.scenario_key = rr.scenario_key
         WHERE rr.scenario_key = ?
         ORDER BY rr.created_at DESC
         LIMIT ?
@@ -537,6 +549,44 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       }));
     },
     getScenarioRunHistory,
+    getRecordedRuns(limit = 500) {
+      const rows = database
+        .prepare(`
+          SELECT
+            rr.id AS result_id,
+            rr.run_id,
+            rr.scenario_key,
+            runs.feature_key,
+            COALESCE(s.title, rr.scenario_key) AS scenario_title,
+            rr.status,
+            rr.notes,
+            rr.created_at,
+            runs.tester_name,
+            runs.browser,
+            runs.platform
+          FROM run_results rr
+          INNER JOIN runs ON runs.id = rr.run_id
+          LEFT JOIN scenarios s ON s.scenario_key = rr.scenario_key
+          ORDER BY rr.created_at DESC
+          LIMIT ?
+        `)
+        .all(limit) as unknown as LatestResultRow[];
+
+      const attachmentMap = getAttachmentsForResultIds(
+        database,
+        rows.map((row) => String(row.result_id))
+      );
+
+      return rows.map((row) => ({
+        scenarioKey: String(row.scenario_key),
+        featureKey: String(row.feature_key),
+        scenarioTitle: String(row.scenario_title),
+        ...toLatestResultRecord(
+          row,
+          attachmentMap.get(String(row.result_id)) ?? []
+        )
+      }));
+    },
     recordScenarioRun(input) {
       const now = new Date().toISOString();
       const runId = crypto.randomUUID();

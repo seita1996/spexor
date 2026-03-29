@@ -142,6 +142,28 @@ describe("FeatureDetailPage", () => {
       scenarioId: "scenario-1",
       scenarioTitle: "Login with valid credentials",
       featureId: "specs/manual/login.feature",
+      sharedHistoryEnabled: true,
+      sharedHistoryError: undefined,
+      sharedHistory: [
+        {
+          version: 1,
+          eventId: "shared-1",
+          projectId: "qa-console",
+          featureId: "specs/manual/login.feature",
+          scenarioKey: "scenario-1",
+          scenarioTitle: "Login with valid credentials",
+          runId: "shared-run-1",
+          testerName: "shared@example.com",
+          status: "passed",
+          notes: "shared history",
+          createdAt: "2026-03-29T10:00:00.000Z",
+          attachments: [],
+          source: {
+            kind: "spexor",
+            exportedAt: "2026-03-29T10:05:00.000Z"
+          }
+        }
+      ],
       history: [
         {
           id: "result-1",
@@ -179,6 +201,8 @@ describe("FeatureDetailPage", () => {
         "Review earlier runs for this scenario before recording a new result."
       )
     ).toBeInTheDocument();
+    expect(screen.getByText("Shared history")).toBeInTheDocument();
+    expect(screen.getByText("shared@example.com")).toBeInTheDocument();
     expect(getScenarioHistoryMock).toHaveBeenCalledWith("scenario-1");
   });
 });
