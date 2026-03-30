@@ -29,9 +29,7 @@ describe("@spexor/results", () => {
   });
 
   it("derives a stable default project id from the root path", () => {
-    expect(defaultProjectId("/Users/tahara/Documents/prj/spexor")).toBe(
-      "spexor"
-    );
+    expect(defaultProjectId(".")).toBe("spexor");
     expect(defaultProjectId("/workspace/QA Console")).toBe("qa-console");
     expect(defaultProjectId("/workspace/---QA---Console---")).toBe(
       "qa-console"

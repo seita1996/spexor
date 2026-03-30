@@ -111,11 +111,11 @@ Codex-centered development in this repository uses deterministic harness command
 - `pnpm codex:turn-check` applies Oxlint fixes and Biome formatting to changed files.
 - `pnpm guard:fast` runs harness verification, lint, and typecheck.
 
-- [Architecture](/Users/tahara/Documents/prj/spexor/docs/architecture.md)
-- [Agent instructions](/Users/tahara/Documents/prj/spexor/AGENTS.md)
-- [ADR 0001: Codex harness baseline](/Users/tahara/Documents/prj/spexor/docs/adr/0001-codex-harness-baseline.md)
-- [ADR 0002: Codex turn-boundary guardrails](/Users/tahara/Documents/prj/spexor/docs/adr/0002-codex-turn-boundary-guardrails.md)
-- [ADR 0003: Low-cost shared results hub](/Users/tahara/Documents/prj/spexor/docs/adr/0003-low-cost-shared-results-hub.md)
-- [ADR 0004: CLI setup and hub deploy](/Users/tahara/Documents/prj/spexor/docs/adr/0004-cli-setup-and-hub-deploy.md)
-- [Spec format](/Users/tahara/Documents/prj/spexor/docs/spec-format.md)
-- [Local data model](/Users/tahara/Documents/prj/spexor/docs/local-data-model.md)
+- [Architecture](./docs/architecture.md)
+- [Agent instructions](./AGENTS.md)
+- [ADR 0001: Codex harness baseline](./docs/adr/0001-codex-harness-baseline.md)
+- [ADR 0002: Codex turn-boundary guardrails](./docs/adr/0002-codex-turn-boundary-guardrails.md)
+- [ADR 0003: Low-cost shared results hub](./docs/adr/0003-low-cost-shared-results-hub.md)
+- [ADR 0004: CLI setup and hub deploy](./docs/adr/0004-cli-setup-and-hub-deploy.md)
+- [Spec format](./docs/spec-format.md)
+- [Local data model](./docs/local-data-model.md)
