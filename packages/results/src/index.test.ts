@@ -33,5 +33,8 @@ describe("@spexor/results", () => {
       "spexor"
     );
     expect(defaultProjectId("/workspace/QA Console")).toBe("qa-console");
+    expect(defaultProjectId("/workspace/---QA---Console---")).toBe(
+      "qa-console"
+    );
   });
 });

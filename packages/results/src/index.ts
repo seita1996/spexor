@@ -65,10 +65,7 @@ export interface BuildSharedRunEventInput {
 export function defaultProjectId(rootDir: string): string {
   const normalized = rootDir.trim().replace(/\\/g, "/");
   const basename = normalized.split("/").filter(Boolean).at(-1) ?? "spexor";
-  const slug = basename
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const slug = slugifyProjectSegment(basename);
 
   return slug || "spexor";
 }
@@ -325,4 +322,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function slugifyProjectSegment(value: string): string {
+  let result = "";
+  let pendingDash = false;
+
+  for (const character of value.toLowerCase()) {
+    const isAlphaNumeric =
+      (character >= "a" && character <= "z") ||
+      (character >= "0" && character <= "9");
+
+    if (isAlphaNumeric) {
+      if (pendingDash && result.length > 0) {
+        result += "-";
+      }
+      result += character;
+      pendingDash = false;
+      continue;
+    }
+
+    pendingDash = result.length > 0;
+  }
+
+  return result;
 }

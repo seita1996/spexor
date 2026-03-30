@@ -43,14 +43,7 @@ export function inferParseHealth(
 }
 
 export function slugify(value: string): string {
-  return (
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "scenario"
-  );
+  return slugifyAscii(value) || "scenario";
 }
 
 export function createScenarioStableId(
@@ -67,7 +60,29 @@ export function interpolateTemplate(
   text: string,
   values: Record<string, string>
 ): string {
-  return text.replace(/<([^>]+)>/g, (match, key) => values[key] ?? match);
+  let result = "";
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const openIndex = text.indexOf("<", cursor);
+    if (openIndex === -1) {
+      result += text.slice(cursor);
+      break;
+    }
+
+    const closeIndex = text.indexOf(">", openIndex + 1);
+    if (closeIndex === -1) {
+      result += text.slice(cursor);
+      break;
+    }
+
+    result += text.slice(cursor, openIndex);
+    const key = text.slice(openIndex + 1, closeIndex);
+    result += values[key] ?? text.slice(openIndex, closeIndex + 1);
+    cursor = closeIndex + 1;
+  }
+
+  return result;
 }
 
 export function expandScenarioCases(
@@ -208,4 +223,29 @@ export function summarizeLatestStatuses(
     latestStatuses,
     aggregate: pickMostSevereStatus(latestStatuses)
   };
+}
+
+function slugifyAscii(value: string): string {
+  const input = value.trim().toLowerCase();
+  let result = "";
+  let pendingDash = false;
+
+  for (const character of input) {
+    const isAlphaNumeric =
+      (character >= "a" && character <= "z") ||
+      (character >= "0" && character <= "9");
+
+    if (isAlphaNumeric) {
+      if (pendingDash && result.length > 0) {
+        result += "-";
+      }
+      result += character;
+      pendingDash = false;
+      continue;
+    }
+
+    pendingDash = result.length > 0;
+  }
+
+  return result.slice(0, 80);
 }
