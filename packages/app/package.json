@@ -22,6 +22,6 @@
     "@spexor/domain": "workspace:*",
     "@spexor/parser": "workspace:*",
     "@spexor/results": "workspace:*",
-    "chokidar": "^4.0.3"
+    "chokidar": "^5.0.0"
   }
 }
