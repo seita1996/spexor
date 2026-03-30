@@ -9,7 +9,7 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 - `packages/app`: orchestrates config, parser, DB, and watcher behavior into DTOs for the UI
 - `packages/results`: shared run-result event schema, NDJSON helpers, and hub client helpers
 - `packages/ui`: shared presentational React components
-- `apps/web`: local Node API plus Vite/React UI
+- `apps/spexor`: local Node API plus Vite/React UI
 - `apps/results-hub`: low-cost shared results API for NDJSON ingest and scenario history queries
 
 ## Runtime shape

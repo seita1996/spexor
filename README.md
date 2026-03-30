@@ -46,7 +46,7 @@ Then open the local Vite URL shown in the terminal. The default `spexor.config.t
 Install Spexor into the project you want to manage:
 
 ```bash
-npm install -D @spexor/web
+npm install -D @spexor/spexor
 ```
 
 Then run:

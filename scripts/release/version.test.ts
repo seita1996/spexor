@@ -33,7 +33,7 @@ describe("release version script", () => {
   it("updates root and workspace package versions together", async () => {
     const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-release-"));
 
-    await fs.mkdir(path.join(cwd, "apps", "web"), { recursive: true });
+    await fs.mkdir(path.join(cwd, "apps", "spexor"), { recursive: true });
     await fs.mkdir(path.join(cwd, "packages", "domain"), { recursive: true });
     await fs.mkdir(path.join(cwd, "packages", "parser"), { recursive: true });
 
@@ -42,8 +42,8 @@ describe("release version script", () => {
       `${JSON.stringify({ name: "spexor", version: "0.1.0", private: true }, null, 2)}\n`
     );
     await fs.writeFile(
-      path.join(cwd, "apps", "web", "package.json"),
-      `${JSON.stringify({ name: "@spexor/web", version: "0.1.0" }, null, 2)}\n`
+      path.join(cwd, "apps", "spexor", "package.json"),
+      `${JSON.stringify({ name: "@spexor/spexor", version: "0.1.0" }, null, 2)}\n`
     );
     await fs.writeFile(
       path.join(cwd, "packages", "domain", "package.json"),
@@ -64,7 +64,7 @@ describe("release version script", () => {
       fs.readFile(path.join(cwd, "package.json"), "utf8")
     ).resolves.toContain('"version": "0.2.0"');
     await expect(
-      fs.readFile(path.join(cwd, "apps", "web", "package.json"), "utf8")
+      fs.readFile(path.join(cwd, "apps", "spexor", "package.json"), "utf8")
     ).resolves.toContain('"version": "0.2.0"');
     await expect(
       fs.readFile(path.join(cwd, "packages", "parser", "package.json"), "utf8")

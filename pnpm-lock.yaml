@@ -78,7 +78,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/results
 
-  apps/web:
+  apps/spexor:
     dependencies:
       '@fontsource/ibm-plex-mono':
         specifier: ^5.1.1

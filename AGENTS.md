@@ -20,7 +20,7 @@ Do:
 - Add or update tests for behavioral changes.
 - Run `pnpm format` after structural edits that touch multiple files.
 - Keep `lefthook.yml` aligned with the root guard commands.
-- Use existing workspace boundaries: `packages/*` for reusable logic, `apps/web` for delivery.
+- Use existing workspace boundaries: `packages/*` for reusable logic, `apps/spexor` for delivery.
 
 Do not:
 

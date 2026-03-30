@@ -1,4 +1,4 @@
-# @spexor/web
+# @spexor/spexor
 
 Spexor web app and CLI entrypoint.
 
