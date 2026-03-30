@@ -1,6 +1,8 @@
 {
   "name": "@spexor/web",
   "version": "0.1.0",
+  "description": "Spexor web app and CLI entrypoint for local manual-spec tracking.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "spexor": "./bin/spexor.mjs"

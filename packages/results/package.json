@@ -1,6 +1,8 @@
 {
   "name": "@spexor/results",
   "version": "0.1.0",
+  "description": "Shared run-result event schema, NDJSON helpers, and hub clients.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "src"

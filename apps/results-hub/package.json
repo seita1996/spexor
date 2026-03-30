@@ -1,6 +1,8 @@
 {
   "name": "@spexor/results-hub",
   "version": "0.1.0",
+  "description": "Shared results ingestion and query handler for Spexor run history.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "src",

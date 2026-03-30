@@ -1,6 +1,8 @@
 {
   "name": "@spexor/app",
   "version": "0.1.0",
+  "description": "Application service layer that orchestrates config, parsing, and storage.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "src"

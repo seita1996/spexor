@@ -1,6 +1,8 @@
 {
   "name": "@spexor/parser",
   "version": "0.1.0",
+  "description": "Parses Spexor .feature files with YAML frontmatter and Gherkin.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "src"

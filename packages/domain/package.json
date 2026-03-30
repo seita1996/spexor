@@ -1,6 +1,8 @@
 {
   "name": "@spexor/domain",
   "version": "0.1.0",
+  "description": "Core Spexor domain types, identifiers, and pure helpers.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "src"

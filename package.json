@@ -2,6 +2,8 @@
   "name": "spexor",
   "version": "0.1.0",
   "private": true,
+  "description": "Manual spec tracker for Gherkin-based QA workflows.",
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.15.1",
   "pnpm": {
