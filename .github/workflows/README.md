@@ -13,5 +13,7 @@
 ## Publish behavior
 
 - Installs with `pnpm`
+- Syncs the root and workspace package versions from the pushed Git tag with `pnpm release:version --from-tag`
 - Runs typecheck, tests, and build
 - Publishes all public workspace packages with `pnpm -r publish`
+- Does not create a release commit in CI; the tag is the source of truth for the published version

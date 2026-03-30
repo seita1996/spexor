@@ -39,6 +39,52 @@ function run(command, args) {
   }
 }
 
+function runBiomeFormat(args) {
+  const result = spawnSync(
+    "pnpm",
+    ["exec", "biome", "format", "--write", ...args],
+    {
+      cwd: rootDir,
+      encoding: "utf8"
+    }
+  );
+
+  if (result.status === 0) {
+    if (result.stdout) {
+      process.stdout.write(result.stdout);
+    }
+    if (result.stderr) {
+      process.stderr.write(result.stderr);
+    }
+    return;
+  }
+
+  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const ignoredOnly =
+    combinedOutput.includes(
+      "No files were processed in the specified paths."
+    ) && combinedOutput.includes("provided but ignored");
+
+  if (ignoredOnly) {
+    if (result.stdout) {
+      process.stdout.write(result.stdout);
+    }
+    if (result.stderr) {
+      process.stderr.write(result.stderr);
+    }
+    console.log("[codex:turn-check] Skipping Biome-ignored files.");
+    return;
+  }
+
+  if (result.stdout) {
+    process.stdout.write(result.stdout);
+  }
+  if (result.stderr) {
+    process.stderr.write(result.stderr);
+  }
+  process.exit(result.status ?? 1);
+}
+
 function runCapture(command, args) {
   const result = spawnSync(command, args, {
     cwd: rootDir,
@@ -156,7 +202,7 @@ if (lintFiles.length > 0) {
 
 if (formatFiles.length > 0) {
   console.log(`[codex:turn-check] Biome format: ${formatFiles.join(", ")}`);
-  run("pnpm", ["exec", "biome", "format", "--write", ...formatFiles]);
+  runBiomeFormat(formatFiles);
 }
 
 if (mode === "staged") {
