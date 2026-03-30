@@ -92,6 +92,9 @@ importers:
       '@spexor/app':
         specifier: workspace:*
         version: link:../../packages/app
+      '@spexor/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@spexor/results-hub':
         specifier: workspace:*
         version: link:../results-hub

@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
 
 const RESULTS_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS shared_run_events (
   event_id TEXT PRIMARY KEY,
@@ -25,8 +29,13 @@ CREATE INDEX IF NOT EXISTS idx_shared_run_events_project_scenario_created
 `;
 
 export async function setupProject(options = {}) {
+  return initProject(options);
+}
+
+export async function initProject(options = {}) {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
   const created = [];
+  const includeStarter = options.includeStarter ?? true;
 
   const specsDir = path.join(projectRoot, "specs/manual");
   const evidenceDir = path.join(projectRoot, ".spexor/evidence");
@@ -39,17 +48,100 @@ export async function setupProject(options = {}) {
   await ensureDirectory(specsDir);
   await ensureDirectory(evidenceDir);
 
-  if (await writeIfMissing(configPath, defaultSpexorConfigTemplate())) {
+  if (
+    await writeIfMissing(
+      configPath,
+      formatSpexorConfig({
+        specDir: "./specs/manual",
+        dbPath: "./.spexor/spexor.db",
+        evidenceDir: "./.spexor/evidence",
+        autoScan: true
+      })
+    )
+  ) {
     created.push(relativePath(projectRoot, configPath));
   }
 
-  if (await writeIfMissing(exampleFeaturePath, starterFeatureTemplate())) {
+  if (
+    includeStarter &&
+    (await writeIfMissing(exampleFeaturePath, starterFeatureTemplate()))
+  ) {
     created.push(relativePath(projectRoot, exampleFeaturePath));
   }
 
   return {
     projectRoot,
     created
+  };
+}
+
+export async function initializeConfig(options = {}) {
+  const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+  const configPath = path.join(projectRoot, "spexor.config.ts");
+  const content = formatSpexorConfig({
+    specDir: options.specDir ?? "./specs/manual",
+    dbPath: options.dbPath ?? "./.spexor/spexor.db",
+    evidenceDir: options.evidenceDir ?? "./.spexor/evidence",
+    autoScan: options.autoScan ?? true,
+    sharedResults: options.sharedResults
+  });
+  const force = options.force ?? false;
+
+  if (!force && (await pathExists(configPath))) {
+    return {
+      configPath,
+      changed: false
+    };
+  }
+
+  await ensureDirectory(path.dirname(configPath));
+  await fs.writeFile(configPath, content, "utf8");
+
+  return {
+    configPath,
+    changed: true
+  };
+}
+
+export async function createSpecFile(options = {}) {
+  const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+  const config = await resolveProjectConfig({ projectRoot });
+  const title = options.title?.trim();
+
+  if (!title) {
+    throw new Error("Spec title is required.");
+  }
+
+  const relativePathInput = options.filePath?.trim();
+  const relativePath = normalizeSpecFilePath(
+    relativePathInput || `${slugify(title)}.feature`
+  );
+  const specRoot = path.resolve(projectRoot, config.specDir);
+  const outputPath = path.join(specRoot, relativePath);
+
+  if (!(options.force ?? false) && (await pathExists(outputPath))) {
+    throw new Error(`Spec file already exists: ${relativePath}`);
+  }
+
+  await ensureDirectory(path.dirname(outputPath));
+  await fs.writeFile(
+    outputPath,
+    specTemplate({
+      title,
+      scenarioTitle: options.scenarioTitle,
+      tags: options.tags ?? [],
+      browsers: options.browsers ?? [],
+      platforms: options.platforms ?? [],
+      priority: options.priority,
+      owner: options.owner,
+      related: options.related ?? []
+    }),
+    "utf8"
+  );
+
+  return {
+    filePath: outputPath,
+    relativePath: relativePath.replace(/\\/g, "/")
   };
 }
 
@@ -210,6 +302,91 @@ export async function deployAwsHub(options = {}) {
   return scaffolded;
 }
 
+export async function initHub(options = {}) {
+  const provider = options.provider;
+  if (provider === "cloudflare") {
+    return scaffoldCloudflareHub(options);
+  }
+  if (provider === "aws") {
+    return scaffoldAwsHub(options);
+  }
+  throw new Error(`Unknown hub provider: ${provider}`);
+}
+
+export async function linkSharedResults(options = {}) {
+  const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+  const configPath = path.join(projectRoot, "spexor.config.ts");
+  const baseUrl = options.baseUrl?.trim();
+  const projectId = options.projectId?.trim();
+
+  if (!baseUrl) {
+    throw new Error("Shared results base URL is required.");
+  }
+
+  const sharedResultsBlock = formatSharedResultsBlock({
+    baseUrl,
+    projectId: projectId || undefined
+  });
+
+  if (!(await pathExists(configPath))) {
+    await initializeConfig({
+      projectRoot,
+      sharedResults: {
+        baseUrl,
+        projectId: projectId || undefined
+      }
+    });
+    return {
+      configPath,
+      changed: true
+    };
+  }
+
+  const current = await fs.readFile(configPath, "utf8");
+  const updated = upsertSharedResults(current, sharedResultsBlock);
+
+  if (updated === current) {
+    return {
+      configPath,
+      changed: false
+    };
+  }
+
+  await fs.writeFile(configPath, updated, "utf8");
+  return {
+    configPath,
+    changed: true
+  };
+}
+
+export async function runDoctor(options = {}) {
+  return runWorkerCommand("doctor", {
+    projectRoot: path.resolve(options.projectRoot ?? process.cwd())
+  });
+}
+
+export async function runScan(options = {}) {
+  return runWorkerCommand("scan", {
+    projectRoot: path.resolve(options.projectRoot ?? process.cwd())
+  });
+}
+
+export async function getProjectStatus(options = {}) {
+  return runWorkerCommand("status", {
+    projectRoot: path.resolve(options.projectRoot ?? process.cwd())
+  });
+}
+
+export async function exportResults(options = {}) {
+  return runWorkerCommand("export-results", {
+    projectRoot: path.resolve(options.projectRoot ?? process.cwd()),
+    outputPath: options.outputPath
+      ? path.resolve(options.projectRoot ?? process.cwd(), options.outputPath)
+      : undefined,
+    stdout: options.stdout ?? false
+  });
+}
+
 export async function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -225,12 +402,16 @@ export async function runCommand(command, args, options = {}) {
       child.stdout?.on("data", (chunk) => {
         const text = chunk.toString();
         stdout += text;
-        process.stdout.write(text);
+        if (options.streamOutput ?? true) {
+          process.stdout.write(text);
+        }
       });
       child.stderr?.on("data", (chunk) => {
         const text = chunk.toString();
         stderr += text;
-        process.stderr.write(text);
+        if (options.streamOutput ?? true) {
+          process.stderr.write(text);
+        }
       });
     }
 
@@ -256,20 +437,20 @@ export function printHelp() {
 Usage:
   spexor dev
   spexor api
+  spexor init
   spexor setup
+  spexor doctor
+  spexor config init
+  spexor spec new <title>
+  spexor scan
+  spexor status
+  spexor export results [--out <path> | --stdout]
+  spexor hub init cloudflare
+  spexor hub init aws
+  spexor hub link --base-url <url> [--project-id <id>]
   spexor hub deploy cloudflare
   spexor hub deploy aws
 `);
-}
-
-function defaultSpexorConfigTemplate() {
-  return `export default {
-  specDir: "./specs/manual",
-  dbPath: "./.spexor/spexor.db",
-  evidenceDir: "./.spexor/evidence",
-  autoScan: true
-};
-`;
 }
 
 function starterFeatureTemplate() {
@@ -285,6 +466,37 @@ Feature: Spexor project bootstrap
     Given Spexor is installed in this repository
     When a tester opens the local app
     Then they can record a result without editing the feature file
+`;
+}
+
+function specTemplate(options) {
+  const frontmatter = [];
+
+  frontmatter.push("---");
+  frontmatter.push(`title: ${options.title}`);
+  pushYamlList(frontmatter, "browsers", options.browsers);
+  pushYamlList(frontmatter, "platforms", options.platforms);
+  pushYamlList(frontmatter, "tags", options.tags);
+  if (options.priority) {
+    frontmatter.push(`priority: ${options.priority}`);
+  }
+  if (options.owner) {
+    frontmatter.push(`owner: ${options.owner}`);
+  }
+  pushYamlList(frontmatter, "related", options.related);
+  frontmatter.push("---");
+
+  const scenarioTitle =
+    options.scenarioTitle?.trim() || `Review ${options.title}`;
+
+  return `${frontmatter.join("\n")}
+
+Feature: ${options.title}
+
+  Scenario: ${scenarioTitle}
+    Given the spec is ready for manual execution
+    When a tester reviews the scenario
+    Then they can record the result in Spexor
 `;
 }
 
@@ -459,6 +671,30 @@ async function ensureDirectory(directoryPath) {
   await fs.mkdir(directoryPath, { recursive: true });
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch (error) {
+    if (error && error.code !== "ENOENT") {
+      throw error;
+    }
+    return false;
+  }
+}
+
+async function resolveProjectConfig(options) {
+  try {
+    return await runWorkerCommand("resolve-config", {
+      projectRoot: options.projectRoot
+    });
+  } catch {
+    return {
+      specDir: "./specs/manual"
+    };
+  }
+}
+
 function relativePath(projectRoot, filePath) {
   return path.relative(projectRoot, filePath) || ".";
 }
@@ -484,4 +720,108 @@ function extractUuid(text) {
   return text.match(
     /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
   )?.[0];
+}
+
+function formatSpexorConfig(config) {
+  const lines = [
+    "export default {",
+    `  specDir: ${JSON.stringify(config.specDir)},`,
+    `  dbPath: ${JSON.stringify(config.dbPath)},`,
+    `  evidenceDir: ${JSON.stringify(config.evidenceDir)},`,
+    `  autoScan: ${config.autoScan ? "true" : "false"}`
+  ];
+
+  if (config.sharedResults) {
+    lines[lines.length - 1] += ",";
+    lines.push(indentBlock(formatSharedResultsBlock(config.sharedResults), 2));
+  }
+
+  lines.push("};", "");
+  return lines.join("\n");
+}
+
+function formatSharedResultsBlock(sharedResults) {
+  const lines = [
+    "sharedResults: {",
+    `  baseUrl: ${JSON.stringify(sharedResults.baseUrl)},`
+  ];
+
+  if (sharedResults.projectId) {
+    lines.push(`  projectId: ${JSON.stringify(sharedResults.projectId)}`);
+  } else {
+    lines[lines.length - 1] = lines[lines.length - 1].replace(/,$/, "");
+  }
+
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function indentBlock(text, spaces) {
+  const prefix = " ".repeat(spaces);
+  return text
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function pushYamlList(lines, key, items) {
+  if (!items?.length) {
+    return;
+  }
+
+  lines.push(`${key}:`);
+  for (const item of items) {
+    lines.push(`  - ${item}`);
+  }
+}
+
+function normalizeSpecFilePath(filePath) {
+  const normalized = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized.endsWith(".feature") ? normalized : `${normalized}.feature`;
+}
+
+function upsertSharedResults(current, sharedResultsBlock) {
+  const indentedBlock = indentBlock(sharedResultsBlock, 2);
+
+  if (current.includes("sharedResults:")) {
+    return current.replace(
+      /sharedResults:\s*\{[\s\S]*?\n\s*\},?/m,
+      indentedBlock +
+        (current.match(/sharedResults:\s*\{[\s\S]*?\n\s*\},/m) ? "," : "")
+    );
+  }
+
+  const insertion = `${indentedBlock}\n`;
+  const withComma = current.replace(/autoScan:\s*(true|false)\s*\n/, (match) =>
+    match.trimEnd().endsWith(",") ? match : `${match.trimEnd()},\n`
+  );
+
+  if (withComma.includes("\n};")) {
+    return withComma.replace(/\n};\s*$/, `\n${insertion}};\n`);
+  }
+
+  if (withComma.includes("\n}")) {
+    return withComma.replace(/\n}\s*$/, `\n${insertion}}\n`);
+  }
+
+  throw new Error("Could not update spexor.config.ts with sharedResults.");
+}
+
+async function runWorkerCommand(command, input) {
+  const workerPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "cli-worker.mjs"
+  );
+  const tsxImportPath = require.resolve("tsx");
+  const result = await runCommand(
+    process.execPath,
+    ["--import", tsxImportPath, workerPath, command, JSON.stringify(input)],
+    {
+      cwd: input.projectRoot,
+      captureOutput: true,
+      streamOutput: false
+    }
+  );
+
+  return JSON.parse(result.stdout);
 }
