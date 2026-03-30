@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@cucumber/gherkin": "^31.0.0",
+    "@cucumber/gherkin": "^39.0.0",
     "@cucumber/messages": "^27.0.2",
     "@spexor/domain": "workspace:*",
     "gray-matter": "^4.0.3",
