@@ -1,5 +1,11 @@
 # Spexor
 
+[![CI](https://github.com/seita1996/spexor/actions/workflows/ci.yml/badge.svg)](https://github.com/seita1996/spexor/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/seita1996/spexor/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/seita1996/spexor/actions/workflows/github-code-scanning/codeql)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/%40spexor%2Fspexor)](https://www.npmjs.com/package/@spexor/spexor)
+![NPM Downloads](https://img.shields.io/npm/dy/%40spexor%2Fspexor)
+
 Spexor is a Git-native manual spec runner for Gherkin-based workflows.
 
 It keeps manual test specifications close to source code as `.feature` files, lets a developer or QA engineer execute those specs in a local GUI, and stores execution history in SQLite without turning the spec source of truth into a database.
