@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "pnpm --filter @spexor/web dev",
     "build": "pnpm --filter @spexor/web build",
+    "release:version": "node ./scripts/release/version.mjs",
     "harness:check": "node ./scripts/harness/check-harness.mjs",
     "codex:turn-check": "node ./scripts/harness/codex-turn-check.mjs",
     "format": "biome format --write .",
