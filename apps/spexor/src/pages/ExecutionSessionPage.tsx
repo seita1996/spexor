@@ -248,8 +248,7 @@ export function ExecutionSessionPage() {
                     key={`${detail.id}-${activeItem.scenarioId}`}
                     scenarioId={activeItem.scenarioId}
                     scenarioTitle={activeItem.scenarioTitle}
-                    browsers={activeItem.browsers}
-                    platforms={activeItem.platforms}
+                    environments={activeItem.environments}
                     isSaving={saving}
                     saveError={saveError}
                     resetOnSubmit
@@ -302,7 +301,7 @@ function summarizeFilters(detail: ExecutionSessionDetailDto): string {
   const labels = [
     detail.filters.search.trim() && `search "${detail.filters.search.trim()}"`,
     detail.filters.tag && `tag ${detail.filters.tag}`,
-    detail.filters.browser && `browser ${detail.filters.browser}`,
+    detail.filters.environment && `environment ${detail.filters.environment}`,
     detail.filters.priority && `priority ${detail.filters.priority}`
   ].filter(Boolean);
 

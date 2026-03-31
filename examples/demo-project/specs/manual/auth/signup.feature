@@ -1,11 +1,8 @@
 ---
 title: Signup
-browsers:
-  - chrome
-  - firefox
-platforms:
-  - mac
-  - windows
+environments:
+  - mac-chrome
+  - windows-firefox
 tags:
   - auth
   - regression

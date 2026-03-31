@@ -7,8 +7,7 @@ export interface RunHistoryItemView {
   testerName: string;
   createdAt: string;
   notes: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   attachments: EvidenceRef[];
 }
 
@@ -41,8 +40,7 @@ export function RunHistoryList(props: {
               </div>
               <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 <span>{new Date(item.createdAt).toLocaleString()}</span>
-                {item.browser ? <span>{item.browser}</span> : null}
-                {item.platform ? <span>{item.platform}</span> : null}
+                {item.environment ? <span>{item.environment}</span> : null}
               </div>
             </div>
           </header>

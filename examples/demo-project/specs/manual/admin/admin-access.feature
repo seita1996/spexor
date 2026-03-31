@@ -1,10 +1,8 @@
 ---
 title: Admin access
-browsers:
-  - chrome
-platforms:
-  - mac
-  - linux
+environments:
+  - mac-chrome
+  - linux-chrome
 tags:
   - admin
   - security

@@ -25,8 +25,7 @@ interface SharedRunEventRow {
   scenario_title: string;
   run_id: string;
   tester_name: string;
-  browser: string | null;
-  platform: string | null;
+  environment: string | null;
   status: SharedRunEvent["status"];
   notes: string;
   created_at: string;
@@ -54,8 +53,7 @@ class CloudflareD1SharedResultsStore implements SharedResultsStore {
             scenario_title,
             run_id,
             tester_name,
-            browser,
-            platform,
+            environment,
             status,
             notes,
             created_at,
@@ -72,8 +70,7 @@ class CloudflareD1SharedResultsStore implements SharedResultsStore {
           event.scenarioTitle,
           event.runId,
           event.testerName,
-          event.browser ?? null,
-          event.platform ?? null,
+          event.environment ?? null,
           event.status,
           event.notes,
           event.createdAt,
@@ -101,8 +98,7 @@ class CloudflareD1SharedResultsStore implements SharedResultsStore {
           scenario_title,
           run_id,
           tester_name,
-          browser,
-          platform,
+          environment,
           status,
           notes,
           created_at,
@@ -124,8 +120,7 @@ class CloudflareD1SharedResultsStore implements SharedResultsStore {
       scenarioTitle: row.scenario_title,
       runId: row.run_id,
       testerName: row.tester_name,
-      browser: row.browser ?? undefined,
-      platform: row.platform ?? undefined,
+      environment: row.environment ?? undefined,
       status: row.status,
       notes: row.notes,
       createdAt: row.created_at,

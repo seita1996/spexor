@@ -3,14 +3,14 @@ import type { Priority } from "@spexor/domain";
 export interface SpecsFilterValue {
   search: string;
   tag: string;
-  browser: string;
+  environment: string;
   priority: Priority | "";
 }
 
 export function FilterBar(props: {
   value: SpecsFilterValue;
   tagOptions: string[];
-  browserOptions: string[];
+  environmentOptions: string[];
   onChange: (next: SpecsFilterValue) => void;
 }) {
   return (
@@ -46,18 +46,21 @@ export function FilterBar(props: {
       </label>
 
       <label className="grid gap-2 text-sm text-foreground">
-        Browser
+        Environment
         <select
           className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-          value={props.value.browser}
+          value={props.value.environment}
           onChange={(event) =>
-            props.onChange({ ...props.value, browser: event.target.value })
+            props.onChange({
+              ...props.value,
+              environment: event.target.value
+            })
           }
         >
-          <option value="">All browsers</option>
-          {props.browserOptions.map((browser) => (
-            <option key={browser} value={browser}>
-              {browser}
+          <option value="">All environments</option>
+          {props.environmentOptions.map((environment) => (
+            <option key={environment} value={environment}>
+              {environment}
             </option>
           ))}
         </select>

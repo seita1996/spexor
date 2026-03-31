@@ -34,8 +34,7 @@ export interface ParseIssue {
 
 export interface FeatureMetadata {
   title?: string | undefined;
-  browsers: string[];
-  platforms: string[];
+  environments: string[];
   tags: string[];
   priority?: Priority | undefined;
   owner?: string | undefined;
@@ -121,8 +120,7 @@ export interface ManualRun {
   scenarioId: string;
   featureId: string;
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   createdAt: string;
 }
 
@@ -138,8 +136,7 @@ export interface RunResult {
 
 export interface LatestScenarioResult extends RunResult {
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
 }
 
 export interface StatusSummary {

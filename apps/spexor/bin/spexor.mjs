@@ -171,6 +171,7 @@ async function handleSpecCommand(commandArgs) {
     priority: parsed.values["--priority"],
     owner: parsed.values["--owner"],
     tags: parsed.multi["--tag"] ?? [],
+    environments: parsed.multi["--environment"] ?? [],
     browsers: parsed.multi["--browser"] ?? [],
     platforms: parsed.multi["--platform"] ?? [],
     related: parsed.multi["--related"] ?? [],

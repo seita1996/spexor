@@ -84,10 +84,8 @@ describe("@spexor/app", () => {
       path.join(tempRoot, "specs/manual/login.feature"),
       `---
 title: Login
-browsers:
-  - chrome
-platforms:
-  - mac
+environments:
+  - mac-chrome
 tags:
   - auth
 priority: high
@@ -139,13 +137,13 @@ Feature: User login
       filters: {
         search: "",
         tag: "auth",
-        browser: "chrome",
+        environment: "mac-chrome",
         priority: "high"
       }
     });
     expect(session.totalCount).toBe(1);
     expect(session.items[0]?.scenarioId).toBe(scenarioId);
-    expect(session.items[0]?.browsers).toEqual(["chrome"]);
+    expect(session.items[0]?.environments).toEqual(["mac-chrome"]);
 
     await app.recordSessionScenarioResult(session.id, scenarioId, {
       testerName: "qa@example.com",
@@ -163,7 +161,7 @@ Feature: User login
         filters: {
           search: "missing",
           tag: "",
-          browser: "",
+          environment: "",
           priority: ""
         }
       })

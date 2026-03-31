@@ -34,7 +34,7 @@ describe("ExecutionSessionPage", () => {
         filters: {
           search: "",
           tag: "auth",
-          browser: "",
+          environment: "",
           priority: "high"
         },
         items: [
@@ -50,8 +50,7 @@ describe("ExecutionSessionPage", () => {
               { keyword: "When", text: "I enter valid credentials" },
               { keyword: "Then", text: "the dashboard appears" }
             ],
-            browsers: ["chrome"],
-            platforms: ["mac"],
+            environments: ["mac-chrome"],
             latestResult: null,
             resolvedStatus: null,
             isStale: false
@@ -64,8 +63,7 @@ describe("ExecutionSessionPage", () => {
             sortOrder: 2,
             sourceLine: 18,
             steps: [{ keyword: "Then", text: "an error message appears" }],
-            browsers: ["chrome"],
-            platforms: ["mac"],
+            environments: ["mac-chrome"],
             latestResult: null,
             resolvedStatus: null,
             isStale: false
@@ -85,7 +83,7 @@ describe("ExecutionSessionPage", () => {
         filters: {
           search: "",
           tag: "auth",
-          browser: "",
+          environment: "",
           priority: "high"
         },
         items: [
@@ -101,15 +99,13 @@ describe("ExecutionSessionPage", () => {
               { keyword: "When", text: "I enter valid credentials" },
               { keyword: "Then", text: "the dashboard appears" }
             ],
-            browsers: ["chrome"],
-            platforms: ["mac"],
+            environments: ["mac-chrome"],
             latestResult: {
               id: "result-1",
               runId: "run-1",
               scenarioId: "scenario-1",
               testerName: "qa@example.com",
-              browser: "chrome",
-              platform: "mac",
+              environment: "mac-chrome",
               status: "passed",
               notes: "looks good",
               createdAt: "2026-03-31T10:05:00.000Z",
@@ -126,8 +122,7 @@ describe("ExecutionSessionPage", () => {
             sortOrder: 2,
             sourceLine: 18,
             steps: [{ keyword: "Then", text: "an error message appears" }],
-            browsers: ["chrome"],
-            platforms: ["mac"],
+            environments: ["mac-chrome"],
             latestResult: null,
             resolvedStatus: null,
             isStale: false
@@ -197,7 +192,7 @@ describe("ExecutionSessionPage", () => {
       filters: {
         search: "",
         tag: "",
-        browser: "",
+        environment: "",
         priority: ""
       },
       items: [
@@ -208,8 +203,7 @@ describe("ExecutionSessionPage", () => {
           scenarioTitle: "Login with valid credentials",
           sortOrder: 1,
           sourceLine: 12,
-          browsers: ["chrome"],
-          platforms: ["mac"],
+          environments: ["mac-chrome"],
           latestResult: null,
           resolvedStatus: null,
           isStale: false

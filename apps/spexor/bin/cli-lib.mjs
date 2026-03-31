@@ -14,8 +14,7 @@ const RESULTS_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS shared_run_events (
   scenario_title TEXT NOT NULL,
   run_id TEXT NOT NULL,
   tester_name TEXT NOT NULL,
-  browser TEXT,
-  platform TEXT,
+  environment TEXT,
   status TEXT NOT NULL,
   notes TEXT NOT NULL,
   created_at TEXT NOT NULL,
@@ -130,8 +129,11 @@ export async function createSpecFile(options = {}) {
       title,
       scenarioTitle: options.scenarioTitle,
       tags: options.tags ?? [],
-      browsers: options.browsers ?? [],
-      platforms: options.platforms ?? [],
+      environments: deriveEnvironments(
+        options.environments ?? [],
+        options.browsers ?? [],
+        options.platforms ?? []
+      ),
       priority: options.priority,
       owner: options.owner,
       related: options.related ?? []
@@ -474,8 +476,7 @@ function specTemplate(options) {
 
   frontmatter.push("---");
   frontmatter.push(`title: ${options.title}`);
-  pushYamlList(frontmatter, "browsers", options.browsers);
-  pushYamlList(frontmatter, "platforms", options.platforms);
+  pushYamlList(frontmatter, "environments", options.environments);
   pushYamlList(frontmatter, "tags", options.tags);
   if (options.priority) {
     frontmatter.push(`priority: ${options.priority}`);
@@ -498,6 +499,26 @@ Feature: ${options.title}
     When a tester reviews the scenario
     Then they can record the result in Spexor
 `;
+}
+
+function deriveEnvironments(environments, browsers, platforms) {
+  if (environments.length > 0) {
+    return [
+      ...new Set(environments.map((item) => item.trim()).filter(Boolean))
+    ];
+  }
+
+  if (platforms.length > 0 && browsers.length > 0) {
+    return platforms.flatMap((platform) =>
+      browsers.map((browser) => `${platform}-${browser}`)
+    );
+  }
+
+  return [
+    ...new Set(
+      [...platforms, ...browsers].map((item) => item.trim()).filter(Boolean)
+    )
+  ];
 }
 
 function cloudflarePackageTemplate() {

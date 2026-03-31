@@ -9,10 +9,9 @@ Optional YAML frontmatter may appear at the top of the file:
 ```yaml
 ---
 title: Login
-browsers:
-  - chrome
-platforms:
-  - mac
+environments:
+  - mac-chrome
+  - mac-safari
 tags:
   - auth
 priority: high
@@ -25,8 +24,7 @@ related:
 Supported MVP fields:
 
 - `title: string`
-- `browsers: string[]`
-- `platforms: string[]`
+- `environments: string[]`
 - `tags: string[]`
 - `priority: low | medium | high`
 - `owner: string`

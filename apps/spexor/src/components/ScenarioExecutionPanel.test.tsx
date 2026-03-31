@@ -16,8 +16,7 @@ describe("ScenarioExecutionPanel", () => {
       <ScenarioExecutionPanel
         scenarioId="spec::login::1"
         scenarioTitle="Login with valid credentials"
-        browsers={["chrome", "safari"]}
-        platforms={["mac"]}
+        environments={["mac-chrome", "mac-safari"]}
         isSaving={false}
         onSubmit={onSubmit}
       />
@@ -31,8 +30,10 @@ describe("ScenarioExecutionPanel", () => {
       screen.getByLabelText("Notes"),
       "Passed after clearing cache"
     );
-    await userEvent.selectOptions(screen.getByLabelText("Browser"), "safari");
-    await userEvent.selectOptions(screen.getByLabelText("Platform"), "mac");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Environment"),
+      "mac-safari"
+    );
     await userEvent.type(
       screen.getByPlaceholderText("/tmp/screenshot.png"),
       "/tmp/login.png"
@@ -45,8 +46,7 @@ describe("ScenarioExecutionPanel", () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       testerName: "qa@example.com",
-      browser: "safari",
-      platform: "mac",
+      environment: "mac-safari",
       status: "passed",
       notes: "Passed after clearing cache",
       attachments: [
@@ -69,8 +69,7 @@ describe("ScenarioExecutionPanel", () => {
       <ScenarioExecutionPanel
         scenarioId="spec::login::1"
         scenarioTitle="Login with valid credentials"
-        browsers={["chrome"]}
-        platforms={["mac"]}
+        environments={["mac-chrome"]}
         isSaving={false}
         onSubmit={vi.fn().mockResolvedValue(undefined)}
       />
@@ -88,8 +87,7 @@ describe("ScenarioExecutionPanel", () => {
       <ScenarioExecutionPanel
         scenarioId="spec::login::1"
         scenarioTitle="Login with valid credentials"
-        browsers={["chrome"]}
-        platforms={["mac"]}
+        environments={["mac-chrome"]}
         isSaving={false}
         resetOnSubmit
         onSubmit={onSubmit}

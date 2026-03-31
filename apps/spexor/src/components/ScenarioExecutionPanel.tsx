@@ -37,8 +37,7 @@ function createEvidenceDraft(): EvidenceDraft {
 export function ScenarioExecutionPanel(props: {
   scenarioId: string;
   scenarioTitle: string;
-  browsers: string[];
-  platforms: string[];
+  environments: string[];
   isSaving: boolean;
   saveError?: string | null;
   resetOnSubmit?: boolean;
@@ -51,16 +50,14 @@ export function ScenarioExecutionPanel(props: {
 
     return window.localStorage.getItem(testerNameStorageKey) ?? "";
   });
-  const [browser, setBrowser] = useState(props.browsers[0] ?? "");
-  const [platform, setPlatform] = useState(props.platforms[0] ?? "");
+  const [environment, setEnvironment] = useState(props.environments[0] ?? "");
   const [status, setStatus] = useState<RunStatus>("passed");
   const [notes, setNotes] = useState("");
   const [attachments, setAttachments] = useState<EvidenceDraft[]>(() => [
     createEvidenceDraft()
   ]);
   const testerNameInputId = `${props.scenarioId}-tester-name`;
-  const browserInputId = `${props.scenarioId}-browser`;
-  const platformInputId = `${props.scenarioId}-platform`;
+  const environmentInputId = `${props.scenarioId}-environment`;
   const notesInputId = `${props.scenarioId}-notes`;
 
   useEffect(() => {
@@ -69,12 +66,11 @@ export function ScenarioExecutionPanel(props: {
         ? ""
         : (window.localStorage.getItem(testerNameStorageKey) ?? "")
     );
-    setBrowser(props.browsers[0] ?? "");
-    setPlatform(props.platforms[0] ?? "");
+    setEnvironment(props.environments[0] ?? "");
     setStatus("passed");
     setNotes("");
     setAttachments([createEvidenceDraft()]);
-  }, [props.browsers, props.platforms]);
+  }, [props.environments]);
 
   return (
     <form
@@ -87,8 +83,7 @@ export function ScenarioExecutionPanel(props: {
 
         await props.onSubmit({
           testerName: testerName.trim(),
-          browser: browser || undefined,
-          platform: platform || undefined,
+          environment: environment || undefined,
           status,
           notes,
           attachments: attachments
@@ -134,38 +129,18 @@ export function ScenarioExecutionPanel(props: {
         />
       </label>
 
-      {props.browsers.length > 0 ? (
+      {props.environments.length > 0 ? (
         <label
-          htmlFor={browserInputId}
+          htmlFor={environmentInputId}
           className="grid gap-2 text-sm text-foreground"
         >
-          Browser
+          Environment
           <Select
-            id={browserInputId}
-            value={browser}
-            onChange={(event) => setBrowser(event.target.value)}
+            id={environmentInputId}
+            value={environment}
+            onChange={(event) => setEnvironment(event.target.value)}
           >
-            {props.browsers.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </label>
-      ) : null}
-
-      {props.platforms.length > 0 ? (
-        <label
-          htmlFor={platformInputId}
-          className="grid gap-2 text-sm text-foreground"
-        >
-          Platform
-          <Select
-            id={platformInputId}
-            value={platform}
-            onChange={(event) => setPlatform(event.target.value)}
-          >
-            {props.platforms.map((option) => (
+            {props.environments.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

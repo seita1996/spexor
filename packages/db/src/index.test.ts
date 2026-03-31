@@ -24,8 +24,7 @@ describe("@spexor/db", () => {
         description: "",
         metadata: {
           title: "Login",
-          browsers: ["chrome"],
-          platforms: ["mac"],
+          environments: ["mac-chrome"],
           tags: ["auth"],
           priority: "high",
           owner: "qa@example.com",
@@ -92,7 +91,7 @@ describe("@spexor/db", () => {
       filtersJson: JSON.stringify({
         search: "",
         tag: "auth",
-        browser: "",
+        environment: "",
         priority: "high"
       }),
       items: [

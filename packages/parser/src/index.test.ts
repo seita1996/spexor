@@ -9,8 +9,8 @@ describe("@spexor/parser", () => {
     const parsed = parseSpecText(
       `---
 title: Login
-browsers:
-  - chrome
+environments:
+  - mac-chrome
 tags:
   - auth
 priority: high
@@ -36,6 +36,7 @@ Feature: User login
 
     expect(parsed.parseHealth).toBe("ok");
     expect(parsed.feature?.metadata.title).toBe("Login");
+    expect(parsed.feature?.metadata.environments).toEqual(["mac-chrome"]);
     expect(parsed.feature?.background).toHaveLength(1);
     expect(parsed.feature?.scenarios).toHaveLength(1);
     expect(parsed.feature?.scenarios[0]?.kind).toBe("outline");

@@ -88,8 +88,7 @@ describe("spexor cli helpers", () => {
       filePath: "commerce/checkout",
       scenarioTitle: "Complete a purchase",
       tags: ["checkout", "smoke"],
-      browsers: ["chrome"],
-      platforms: ["mac"],
+      environments: ["mac-chrome"],
       priority: "high",
       owner: "qa@example.com",
       related: ["https://example.com/issues/123"]
@@ -101,6 +100,9 @@ describe("spexor cli helpers", () => {
     );
     await expect(fs.readFile(result.filePath, "utf8")).resolves.toContain(
       "  - checkout"
+    );
+    await expect(fs.readFile(result.filePath, "utf8")).resolves.toContain(
+      "  - mac-chrome"
     );
   });
 

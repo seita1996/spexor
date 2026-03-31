@@ -1,11 +1,8 @@
 ---
 title: Profile update
-browsers:
-  - chrome
-  - edge
-platforms:
-  - mac
-  - windows
+environments:
+  - mac-chrome
+  - windows-edge
 tags:
   - profile
   - account

@@ -27,8 +27,9 @@ import { z } from "zod";
 const frontmatterSchema = z
   .object({
     title: z.string().min(1).optional(),
-    browsers: z.array(z.string()).default([]),
-    platforms: z.array(z.string()).default([]),
+    environments: z.array(z.string()).default([]),
+    browsers: z.array(z.string()).optional(),
+    platforms: z.array(z.string()).optional(),
     tags: z.array(z.string()).default([]),
     priority: z.enum(["low", "medium", "high"]).optional(),
     owner: z.string().min(1).optional(),
@@ -119,8 +120,7 @@ function parseFrontmatter(
 ): { content: string; metadata: FeatureMetadata; issues: ParseIssue[] } {
   const issues: ParseIssue[] = [];
   const fallbackMetadata: FeatureMetadata = {
-    browsers: [],
-    platforms: [],
+    environments: [],
     tags: [],
     related: [],
     extra: {}
@@ -167,6 +167,7 @@ function parseMetadataObject(
 ): FeatureMetadata {
   type LooseFrontmatterShape = Record<string, unknown> & {
     title?: unknown;
+    environments?: unknown;
     browsers?: unknown;
     platforms?: unknown;
     tags?: unknown;
@@ -176,8 +177,7 @@ function parseMetadataObject(
   };
 
   const fallbackMetadata: FeatureMetadata = {
-    browsers: [],
-    platforms: [],
+    environments: [],
     tags: [],
     related: [],
     extra: {}
@@ -191,6 +191,7 @@ function parseMetadataObject(
   if (parsed.success) {
     const {
       title,
+      environments,
       browsers,
       platforms,
       tags,
@@ -201,8 +202,7 @@ function parseMetadataObject(
     } = parsed.data;
     return {
       title,
-      browsers,
-      platforms,
+      environments: normalizeEnvironments(environments, browsers, platforms),
       tags: normalizeTags(tags),
       priority,
       owner,
@@ -224,16 +224,11 @@ function parseMetadataObject(
   const value = rawData as LooseFrontmatterShape;
   return {
     title: typeof value.title === "string" ? value.title : undefined,
-    browsers: Array.isArray(value.browsers)
-      ? value.browsers.filter(
-          (item): item is string => typeof item === "string"
-        )
-      : [],
-    platforms: Array.isArray(value.platforms)
-      ? value.platforms.filter(
-          (item): item is string => typeof item === "string"
-        )
-      : [],
+    environments: normalizeEnvironments(
+      filterStringArray(value.environments),
+      filterStringArray(value.browsers),
+      filterStringArray(value.platforms)
+    ),
     tags: Array.isArray(value.tags)
       ? normalizeTags(
           value.tags.filter((item): item is string => typeof item === "string")
@@ -254,6 +249,7 @@ function parseMetadataObject(
         ([key]) =>
           ![
             "title",
+            "environments",
             "browsers",
             "platforms",
             "tags",
@@ -264,6 +260,42 @@ function parseMetadataObject(
       )
     )
   };
+}
+
+function normalizeEnvironments(
+  environments: readonly string[] | undefined,
+  browsers: readonly string[] | undefined,
+  platforms: readonly string[] | undefined
+): string[] {
+  if (environments && environments.length > 0) {
+    return [
+      ...new Set(environments.map((item) => item.trim()).filter(Boolean))
+    ];
+  }
+
+  if (!browsers?.length && !platforms?.length) {
+    return [];
+  }
+
+  if (platforms?.length && browsers?.length) {
+    return platforms.flatMap((platform) =>
+      browsers.map((browser) => `${platform.trim()}-${browser.trim()}`)
+    );
+  }
+
+  return [
+    ...new Set(
+      [...(platforms ?? []), ...(browsers ?? [])]
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  ];
+}
+
+function filterStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function buildFeatureSpec(

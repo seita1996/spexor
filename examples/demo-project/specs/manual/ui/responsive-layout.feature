@@ -1,11 +1,8 @@
 ---
 title: Responsive smoke checks
-browsers:
-  - chrome
-  - safari
-platforms:
-  - ios
-  - android
+environments:
+  - ios-safari
+  - android-chrome
 tags:
   - ui
   - smoke

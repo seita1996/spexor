@@ -69,8 +69,7 @@ export interface FeatureDetailDto {
 
 export interface RecordScenarioResultInput {
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   status: RunStatus;
   notes?: string | undefined;
   attachments?: EvidenceRef[] | undefined;
@@ -120,7 +119,7 @@ export interface SharedSyncResultDto {
 export interface ExecutionSessionFilters {
   search: string;
   tag: string;
-  browser: string;
+  environment: string;
   priority: Priority | "";
 }
 
@@ -150,8 +149,7 @@ export interface ExecutionSessionItemDto {
   sortOrder: number;
   sourceLine?: number | null;
   steps?: StepSpec[] | undefined;
-  browsers: string[];
-  platforms: string[];
+  environments: string[];
   latestResult: LatestScenarioResult | null;
   resolvedStatus: RunStatus | null;
   isStale: boolean;
@@ -322,8 +320,7 @@ export async function createSpexorApp(
         sortOrder: item.sortOrder,
         sourceLine: item.sourceLine,
         steps: scenario ? parseJson<StepSpec[]>(scenario.stepsJson, []) : [],
-        browsers: metadata.browsers,
-        platforms: metadata.platforms,
+        environments: metadata.environments,
         latestResult: latestResults.get(item.scenarioKey) ?? null,
         resolvedStatus: item.resolvedStatus,
         isStale: !item.isScenarioActive
@@ -345,7 +342,7 @@ export async function createSpexorApp(
       filters: parseJson<ExecutionSessionFilters>(session.filtersJson, {
         search: "",
         tag: "",
-        browser: "",
+        environment: "",
         priority: ""
       }),
       items: sessionItems
@@ -373,8 +370,7 @@ export async function createSpexorApp(
       scenarioKey: scenarioId,
       featureKey: scenario.featureKey,
       testerName: input.testerName.trim(),
-      browser: input.browser?.trim() || undefined,
-      platform: input.platform?.trim() || undefined,
+      environment: input.environment?.trim() || undefined,
       status: input.status,
       notes: input.notes?.trim() ?? "",
       attachments: attachmentRefs
@@ -414,8 +410,7 @@ export async function createSpexorApp(
           scenarioTitle: record.scenarioTitle,
           runId: record.runId,
           testerName: record.testerName,
-          browser: record.browser,
-          platform: record.platform,
+          environment: record.environment,
           status: record.status,
           notes: record.notes,
           createdAt: record.createdAt,
@@ -723,8 +718,7 @@ export async function createSpexorApp(
 
 function emptyMetadata(): FeatureMetadata {
   return {
-    browsers: [],
-    platforms: [],
+    environments: [],
     tags: [],
     related: [],
     extra: {}
@@ -805,8 +799,7 @@ function areResultsEquivalent(
     localLatest.createdAt === sharedLatest.createdAt &&
     localLatest.status === sharedLatest.status &&
     localLatest.testerName === sharedLatest.testerName &&
-    localLatest.browser === sharedLatest.browser &&
-    localLatest.platform === sharedLatest.platform &&
+    localLatest.environment === sharedLatest.environment &&
     localLatest.notes === sharedLatest.notes
   );
 }
@@ -843,12 +836,13 @@ function matchesSpecsFilters(
 
   const matchesTag =
     filters.tag === "" || item.metadata.tags.includes(filters.tag);
-  const matchesBrowser =
-    filters.browser === "" || item.metadata.browsers.includes(filters.browser);
+  const matchesEnvironment =
+    filters.environment === "" ||
+    item.metadata.environments.includes(filters.environment);
   const matchesPriority =
     filters.priority === "" || item.metadata.priority === filters.priority;
 
-  return matchesSearch && matchesTag && matchesBrowser && matchesPriority;
+  return matchesSearch && matchesTag && matchesEnvironment && matchesPriority;
 }
 
 function compareSessionItems(
@@ -879,7 +873,7 @@ function buildExecutionSessionName(
 ): string {
   const activeFilters = [
     filters.tag && `tag:${filters.tag}`,
-    filters.browser && `browser:${filters.browser}`,
+    filters.environment && `environment:${filters.environment}`,
     filters.priority && `priority:${filters.priority}`,
     filters.search.trim() && `search:${filters.search.trim()}`
   ].filter(Boolean);

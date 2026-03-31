@@ -1,11 +1,9 @@
 ---
 title: Login
-browsers:
-  - chrome
-  - safari
-platforms:
-  - mac
-  - ios
+environments:
+  - mac-chrome
+  - mac-safari
+  - ios-safari
 tags:
   - auth
   - smoke

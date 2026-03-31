@@ -22,8 +22,7 @@ export interface SharedRunEvent {
   scenarioTitle: string;
   runId: string;
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   status: RunStatus;
   notes: string;
   createdAt: string;
@@ -50,8 +49,7 @@ export interface BuildSharedRunEventInput {
   scenarioTitle: string;
   runId: string;
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   status: RunStatus;
   notes?: string | undefined;
   createdAt: string;
@@ -82,8 +80,7 @@ export function buildSharedRunEvent(
     scenarioTitle: input.scenarioTitle,
     runId: input.runId,
     testerName: input.testerName,
-    browser: input.browser,
-    platform: input.platform,
+    environment: input.environment,
     status: input.status,
     notes: input.notes ?? "",
     createdAt: input.createdAt,
@@ -224,8 +221,7 @@ function parseSharedRunEvent(
     ),
     runId: expectString(input["runId"], "runId", lineNumber),
     testerName: expectString(input["testerName"], "testerName", lineNumber),
-    browser: expectOptionalString(input["browser"], "browser", lineNumber),
-    platform: expectOptionalString(input["platform"], "platform", lineNumber),
+    environment: parseEnvironment(input, lineNumber),
     status: expectString(input["status"], "status", lineNumber) as RunStatus,
     notes: expectString(input["notes"], "notes", lineNumber, {
       allowEmpty: true
@@ -258,6 +254,33 @@ function parseSharedRunEvent(
       )
     }
   };
+}
+
+function parseEnvironment(
+  input: Record<string, unknown>,
+  lineNumber: number
+): string | undefined {
+  const explicitEnvironment = expectOptionalString(
+    input["environment"],
+    "environment",
+    lineNumber
+  );
+  if (explicitEnvironment) {
+    return explicitEnvironment;
+  }
+
+  const browser = expectOptionalString(input["browser"], "browser", lineNumber);
+  const platform = expectOptionalString(
+    input["platform"],
+    "platform",
+    lineNumber
+  );
+
+  if (platform && browser) {
+    return `${platform}-${browser}`;
+  }
+
+  return platform ?? browser;
 }
 
 function parseAttachment(

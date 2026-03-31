@@ -45,8 +45,7 @@ describe("SpecsListPage", () => {
         issues: [],
         metadata: {
           title: "Login",
-          browsers: ["chrome"],
-          platforms: ["mac"],
+          environments: ["mac-chrome"],
           tags: ["auth"],
           priority: "high",
           owner: "qa@example.com",
@@ -71,8 +70,7 @@ describe("SpecsListPage", () => {
         issues: [],
         metadata: {
           title: "Cart",
-          browsers: ["chrome"],
-          platforms: ["mac"],
+          environments: ["mac-chrome"],
           tags: ["commerce"],
           priority: "medium",
           owner: "qa@example.com",
@@ -125,7 +123,7 @@ describe("SpecsListPage", () => {
       filters: {
         search: "",
         tag: "auth",
-        browser: "",
+        environment: "",
         priority: ""
       }
     });

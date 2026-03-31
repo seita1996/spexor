@@ -192,12 +192,8 @@ export function FeatureDetailPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <MetadataChips label="Tags" values={detail.metadata.tags} />
               <MetadataChips
-                label="Browsers"
-                values={detail.metadata.browsers}
-              />
-              <MetadataChips
-                label="Platforms"
-                values={detail.metadata.platforms}
+                label="Environments"
+                values={detail.metadata.environments}
               />
               <MetadataChips
                 label="Related"
@@ -344,8 +340,7 @@ export function FeatureDetailPage() {
                 key={activeScenario.id}
                 scenarioId={activeScenario.id}
                 scenarioTitle={activeScenario.title}
-                browsers={detail.metadata.browsers}
-                platforms={detail.metadata.platforms}
+                environments={detail.metadata.environments}
                 isSaving={saving}
                 saveError={saveError}
                 onSubmit={async (payload) => {
@@ -511,8 +506,7 @@ export function FeatureDetailPage() {
                             testerName: item.testerName,
                             createdAt: item.createdAt,
                             notes: item.notes,
-                            browser: item.browser,
-                            platform: item.platform,
+                            environment: item.environment,
                             attachments: item.attachments
                           }))}
                           emptyMessage="No shared history has been imported for this scenario yet."

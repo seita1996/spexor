@@ -116,8 +116,7 @@ export interface RecordScenarioRunInput {
   scenarioKey: string;
   featureKey: string;
   testerName: string;
-  browser?: string | undefined;
-  platform?: string | undefined;
+  environment?: string | undefined;
   status: RunStatus;
   notes?: string | undefined;
   attachments: EvidenceRef[];
@@ -235,6 +234,7 @@ interface LatestResultRow {
   notes: unknown;
   created_at: unknown;
   tester_name: unknown;
+  environment: unknown;
   browser: unknown;
   platform: unknown;
 }
@@ -341,6 +341,7 @@ const schema = `
     scenario_key TEXT NOT NULL,
     feature_key TEXT NOT NULL,
     tester_name TEXT NOT NULL,
+    environment TEXT,
     browser TEXT,
     platform TEXT,
     created_at TEXT NOT NULL
@@ -416,6 +417,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   database.exec("PRAGMA journal_mode = WAL;");
   database.exec("PRAGMA foreign_keys = ON;");
   database.exec(schema);
+  ensureRunsEnvironmentColumn(database);
 
   const upsertSpecFile = database.prepare(`
     INSERT INTO spec_files (
@@ -563,6 +565,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           rr.notes,
           rr.created_at,
           runs.tester_name,
+          COALESCE(runs.environment, CASE
+            WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+            ELSE COALESCE(runs.platform, runs.browser)
+          END) AS environment,
           runs.browser,
           runs.platform
         FROM run_results rr
@@ -660,6 +666,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
             rr.notes,
             rr.created_at,
             runs.tester_name,
+            COALESCE(runs.environment, CASE
+              WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+              ELSE COALESCE(runs.platform, runs.browser)
+            END) AS environment,
             runs.browser,
             runs.platform
           FROM scenarios s
@@ -704,6 +714,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
             rr.notes,
             rr.created_at,
             runs.tester_name,
+            COALESCE(runs.environment, CASE
+              WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+              ELSE COALESCE(runs.platform, runs.browser)
+            END) AS environment,
             runs.browser,
             runs.platform
           FROM run_results rr
@@ -737,16 +751,15 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       runTransaction(database, () => {
         database
           .prepare(`
-            INSERT INTO runs (id, scenario_key, feature_key, tester_name, browser, platform, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO runs (id, scenario_key, feature_key, tester_name, environment, browser, platform, created_at)
+            VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
           `)
           .run(
             runId,
             input.scenarioKey,
             input.featureKey,
             input.testerName,
-            input.browser ?? null,
-            input.platform ?? null,
+            input.environment ?? null,
             now
           );
 
@@ -1153,9 +1166,27 @@ function toLatestResultRecord(
     createdAt: String(row.created_at),
     attachments,
     testerName: String(row.tester_name),
-    browser: row.browser ? String(row.browser) : undefined,
-    platform: row.platform ? String(row.platform) : undefined
+    environment: row.environment ? String(row.environment) : undefined
   };
+}
+
+function ensureRunsEnvironmentColumn(database: DatabaseSync): void {
+  const columns = database.prepare("PRAGMA table_info(runs)").all() as Array<{
+    name?: unknown;
+  }>;
+
+  if (!columns.some((column) => String(column.name) === "environment")) {
+    database.exec("ALTER TABLE runs ADD COLUMN environment TEXT;");
+  }
+
+  database.exec(`
+    UPDATE runs
+    SET environment = CASE
+      WHEN platform IS NOT NULL AND browser IS NOT NULL THEN platform || '-' || browser
+      ELSE COALESCE(platform, browser)
+    END
+    WHERE environment IS NULL
+  `);
 }
 
 function toSpecFileRecord(row: SpecFileRow): SpecFileRecord {

@@ -1,11 +1,9 @@
 ---
 title: Shopping cart
-browsers:
-  - chrome
-  - safari
-platforms:
-  - mac
-  - android
+environments:
+  - mac-chrome
+  - mac-safari
+  - android-chrome
 tags:
   - commerce
   - checkout

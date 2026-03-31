@@ -26,7 +26,7 @@ import {
 const emptyFilter = {
   search: "",
   tag: "",
-  browser: "",
+  environment: "",
   priority: "" as "" | "low" | "medium" | "high"
 };
 
@@ -79,8 +79,8 @@ export function SpecsListPage() {
   const tagOptions = [
     ...new Set(items.flatMap((item) => item.metadata.tags))
   ].sort();
-  const browserOptions = [
-    ...new Set(items.flatMap((item) => item.metadata.browsers))
+  const environmentOptions = [
+    ...new Set(items.flatMap((item) => item.metadata.environments))
   ].sort();
 
   const filteredItems = items.filter((item) => {
@@ -100,13 +100,13 @@ export function SpecsListPage() {
 
     const matchesTag =
       filters.tag === "" || item.metadata.tags.includes(filters.tag);
-    const matchesBrowser =
-      filters.browser === "" ||
-      item.metadata.browsers.includes(filters.browser);
+    const matchesEnvironment =
+      filters.environment === "" ||
+      item.metadata.environments.includes(filters.environment);
     const matchesPriority =
       filters.priority === "" || item.metadata.priority === filters.priority;
 
-    return matchesSearch && matchesTag && matchesBrowser && matchesPriority;
+    return matchesSearch && matchesTag && matchesEnvironment && matchesPriority;
   });
 
   const totalScenarioCount = items.reduce(
@@ -116,7 +116,7 @@ export function SpecsListPage() {
   const activeFilterCount = [
     filters.search.trim(),
     filters.tag,
-    filters.browser,
+    filters.environment,
     filters.priority
   ].filter(Boolean).length;
 
@@ -143,7 +143,7 @@ export function SpecsListPage() {
             </CardDescription>
             <div className="grid gap-2 text-sm text-slate-200 md:grid-cols-3 dark:text-muted-foreground">
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                1. Filter by tag, browser, owner, or path
+                1. Filter by tag, environment, owner, or path
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                 2. Open a feature to review steps and recent results
@@ -232,7 +232,7 @@ export function SpecsListPage() {
       <FilterBar
         value={filters}
         tagOptions={tagOptions}
-        browserOptions={browserOptions}
+        environmentOptions={environmentOptions}
         onChange={setFilters}
       />
 
@@ -321,10 +321,9 @@ export function SpecsListPage() {
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <MetadataChips label="Tags" values={item.metadata.tags} />
-              <MetadataChips label="Browsers" values={item.metadata.browsers} />
               <MetadataChips
-                label="Platforms"
-                values={item.metadata.platforms}
+                label="Environments"
+                values={item.metadata.environments}
               />
             </div>
 
