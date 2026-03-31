@@ -1,5 +1,8 @@
 # Spexor
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/21b40913-7888-4551-9326-1036ab4268ad" />
+
+
 [![CI](https://github.com/seita1996/spexor/actions/workflows/ci.yml/badge.svg)](https://github.com/seita1996/spexor/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/seita1996/spexor/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/seita1996/spexor/actions/workflows/github-code-scanning/codeql)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
