@@ -21,6 +21,8 @@ export function ExecutionSessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
+  const [sessionTesterName, setSessionTesterName] = useState("");
+  const [sessionEnvironment, setSessionEnvironment] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +36,16 @@ export function ExecutionSessionPage() {
           setError(null);
           setActiveScenarioId(
             nextDetail.nextScenarioId ?? nextDetail.items[0]?.scenarioId ?? null
+          );
+          const defaults = loadSessionDefaults(nextDetail.id);
+          const availableEnvironments =
+            getSessionEnvironmentOptions(nextDetail);
+          setSessionTesterName(defaults.testerName ?? "");
+          setSessionEnvironment(
+            defaults.environment &&
+              availableEnvironments.includes(defaults.environment)
+              ? defaults.environment
+              : (availableEnvironments[0] ?? "")
           );
         }
       } catch (loadError) {
@@ -68,6 +80,25 @@ export function ExecutionSessionPage() {
     [activeScenarioId, detail]
   );
   const activeSteps = activeItem?.steps ?? [];
+  const environmentOptions = useMemo(
+    () => getSessionEnvironmentOptions(detail),
+    [detail]
+  );
+  const activeItemSupportsEnvironment =
+    !activeItem ||
+    !sessionEnvironment ||
+    activeItem.environments.includes(sessionEnvironment);
+
+  useEffect(() => {
+    if (!detail) {
+      return;
+    }
+
+    saveSessionDefaults(detail.id, {
+      testerName: sessionTesterName,
+      environment: sessionEnvironment
+    });
+  }, [detail, sessionEnvironment, sessionTesterName]);
 
   if (loading) {
     return (
@@ -173,6 +204,36 @@ export function ExecutionSessionPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid gap-4 rounded-xl border border-border bg-muted/25 p-4 md:grid-cols-2">
+            <label className="grid gap-2 text-sm text-foreground">
+              Session tester or developer
+              <input
+                className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                value={sessionTesterName}
+                onChange={(event) => setSessionTesterName(event.target.value)}
+                placeholder="Your name or email"
+              />
+            </label>
+            <label className="grid gap-2 text-sm text-foreground">
+              Session environment
+              <select
+                className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                value={sessionEnvironment}
+                onChange={(event) => setSessionEnvironment(event.target.value)}
+                disabled={environmentOptions.length === 0}
+              >
+                {environmentOptions.length === 0 ? (
+                  <option value="">No environment options</option>
+                ) : null}
+                {environmentOptions.map((environment) => (
+                  <option key={environment} value={environment}>
+                    {environment}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </CardContent>
       </Card>
 
@@ -215,6 +276,12 @@ export function ExecutionSessionPage() {
                   source feature and refresh the session target set before
                   recording a new result.
                 </div>
+              ) : !activeItemSupportsEnvironment ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-5 text-sm text-amber-900 dark:text-amber-200">
+                  The selected session environment does not match this scenario.
+                  Choose one of the scenario environments before recording a
+                  result.
+                </div>
               ) : (
                 <div className="grid gap-5">
                   <section className="grid gap-3">
@@ -249,6 +316,10 @@ export function ExecutionSessionPage() {
                     scenarioId={activeItem.scenarioId}
                     scenarioTitle={activeItem.scenarioTitle}
                     environments={activeItem.environments}
+                    fixedTesterName={sessionTesterName}
+                    fixedEnvironment={sessionEnvironment}
+                    showTesterNameField={false}
+                    showEnvironmentField={false}
                     isSaving={saving}
                     saveError={saveError}
                     resetOnSubmit
@@ -256,6 +327,25 @@ export function ExecutionSessionPage() {
                       try {
                         setSaving(true);
                         setSaveError(null);
+                        if (!sessionTesterName.trim()) {
+                          throw new Error(
+                            "Session tester or developer is required."
+                          );
+                        }
+                        if (
+                          environmentOptions.length > 0 &&
+                          !sessionEnvironment
+                        ) {
+                          throw new Error("Session environment is required.");
+                        }
+                        if (
+                          sessionEnvironment &&
+                          !activeItem.environments.includes(sessionEnvironment)
+                        ) {
+                          throw new Error(
+                            "The selected session environment does not match this scenario."
+                          );
+                        }
                         await saveSessionScenarioRun(
                           detail.id,
                           activeItem.scenarioId,
@@ -294,6 +384,58 @@ export function ExecutionSessionPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function getSessionEnvironmentOptions(
+  detail: ExecutionSessionDetailDto | null
+): string[] {
+  if (!detail) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      detail.items.flatMap((item) => item.environments).filter(Boolean)
+    )
+  ];
+}
+
+function sessionDefaultsStorageKey(sessionId: string): string {
+  return `spexor.execution-session-defaults:${sessionId}`;
+}
+
+function loadSessionDefaults(sessionId: string): {
+  testerName?: string;
+  environment?: string;
+} {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      sessionDefaultsStorageKey(sessionId)
+    );
+    return raw
+      ? (JSON.parse(raw) as { testerName?: string; environment?: string })
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSessionDefaults(
+  sessionId: string,
+  value: { testerName: string; environment: string }
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    sessionDefaultsStorageKey(sessionId),
+    JSON.stringify(value)
   );
 }
 

@@ -146,6 +146,9 @@ export interface SpexorDatabase {
   getFeatureScenarios(relativePath: string): ScenarioRecord[];
   getScenario(relativePath: string): ScenarioRecord | null;
   getFeatureLatestResults(relativePath: string): ScenarioLatestResultRecord[];
+  getFeatureLatestResultsByEnvironment(
+    relativePath: string
+  ): LatestScenarioResult[];
   getScenarioRunHistory(
     scenarioKey: string,
     limit?: number
@@ -699,6 +702,72 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           attachmentMap.get(String(row.result_id)) ?? []
         )
       }));
+    },
+    getFeatureLatestResultsByEnvironment(relativePath) {
+      const rows = database
+        .prepare(`
+          SELECT
+            latest.result_id,
+            latest.run_id,
+            latest.scenario_key,
+            latest.feature_key,
+            latest.scenario_title,
+            latest.status,
+            latest.notes,
+            latest.created_at,
+            latest.tester_name,
+            latest.environment,
+            latest.browser,
+            latest.platform
+          FROM (
+            SELECT
+              rr.id AS result_id,
+              rr.run_id,
+              rr.scenario_key,
+              runs.feature_key,
+              COALESCE(s.title, rr.scenario_key) AS scenario_title,
+              rr.status,
+              rr.notes,
+              rr.created_at,
+              runs.tester_name,
+              COALESCE(runs.environment, CASE
+                WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+                ELSE COALESCE(runs.platform, runs.browser)
+              END) AS environment,
+              runs.browser,
+              runs.platform,
+              ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(runs.environment, CASE
+                  WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+                  ELSE COALESCE(runs.platform, runs.browser)
+                END)
+                ORDER BY rr.created_at DESC
+              ) AS environment_rank
+            FROM run_results rr
+            INNER JOIN runs ON runs.id = rr.run_id
+            LEFT JOIN scenarios s ON s.scenario_key = rr.scenario_key
+            WHERE runs.feature_key = ?
+              AND COALESCE(runs.environment, CASE
+                WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+                ELSE COALESCE(runs.platform, runs.browser)
+              END) IS NOT NULL
+          ) AS latest
+          WHERE latest.environment_rank = 1
+          ORDER BY latest.environment ASC
+        `)
+        .all(relativePath) as unknown as LatestResultRow[];
+
+      const attachmentMap = getAttachmentsForResultIds(
+        database,
+        rows.map((row) => String(row.result_id))
+      );
+
+      return rows.map((row) =>
+        toLatestResultRecord(
+          row,
+          attachmentMap.get(String(row.result_id)) ?? []
+        )
+      );
     },
     getScenarioRunHistory,
     getRecordedRuns(limit = 500) {

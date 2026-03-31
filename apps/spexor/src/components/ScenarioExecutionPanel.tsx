@@ -38,19 +38,28 @@ export function ScenarioExecutionPanel(props: {
   scenarioId: string;
   scenarioTitle: string;
   environments: string[];
+  fixedTesterName?: string | undefined;
+  fixedEnvironment?: string | undefined;
+  showTesterNameField?: boolean;
+  showEnvironmentField?: boolean;
   isSaving: boolean;
   saveError?: string | null;
   resetOnSubmit?: boolean;
   onSubmit: (input: RecordScenarioResultInput) => Promise<void>;
 }) {
   const [testerName, setTesterName] = useState(() => {
+    if (props.fixedTesterName !== undefined) {
+      return props.fixedTesterName;
+    }
     if (typeof window === "undefined") {
       return "";
     }
 
     return window.localStorage.getItem(testerNameStorageKey) ?? "";
   });
-  const [environment, setEnvironment] = useState(props.environments[0] ?? "");
+  const [environment, setEnvironment] = useState(
+    props.fixedEnvironment ?? props.environments[0] ?? ""
+  );
   const [status, setStatus] = useState<RunStatus>("passed");
   const [notes, setNotes] = useState("");
   const [attachments, setAttachments] = useState<EvidenceDraft[]>(() => [
@@ -62,15 +71,16 @@ export function ScenarioExecutionPanel(props: {
 
   useEffect(() => {
     setTesterName(
-      typeof window === "undefined"
-        ? ""
-        : (window.localStorage.getItem(testerNameStorageKey) ?? "")
+      props.fixedTesterName ??
+        (typeof window === "undefined"
+          ? ""
+          : (window.localStorage.getItem(testerNameStorageKey) ?? ""))
     );
-    setEnvironment(props.environments[0] ?? "");
+    setEnvironment(props.fixedEnvironment ?? props.environments[0] ?? "");
     setStatus("passed");
     setNotes("");
     setAttachments([createEvidenceDraft()]);
-  }, [props.environments]);
+  }, [props.environments, props.fixedEnvironment, props.fixedTesterName]);
 
   return (
     <form
@@ -115,21 +125,23 @@ export function ScenarioExecutionPanel(props: {
         </CardHeader>
       </Card>
 
-      <label
-        htmlFor={testerNameInputId}
-        className="grid gap-2 text-sm text-foreground"
-      >
-        Tester or developer
-        <Input
-          id={testerNameInputId}
-          required
-          value={testerName}
-          onChange={(event) => setTesterName(event.target.value)}
-          placeholder="Your name or email"
-        />
-      </label>
+      {(props.showTesterNameField ?? true) ? (
+        <label
+          htmlFor={testerNameInputId}
+          className="grid gap-2 text-sm text-foreground"
+        >
+          Tester or developer
+          <Input
+            id={testerNameInputId}
+            required
+            value={testerName}
+            onChange={(event) => setTesterName(event.target.value)}
+            placeholder="Your name or email"
+          />
+        </label>
+      ) : null}
 
-      {props.environments.length > 0 ? (
+      {(props.showEnvironmentField ?? true) && props.environments.length > 0 ? (
         <label
           htmlFor={environmentInputId}
           className="grid gap-2 text-sm text-foreground"

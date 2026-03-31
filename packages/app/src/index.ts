@@ -62,9 +62,15 @@ export interface FeatureDetailDto {
   issueCount: number;
   issues: ParseIssue[];
   metadata: FeatureMetadata;
+  environmentStatuses: FeatureEnvironmentStatusDto[];
   description: string;
   background: StepSpec[];
   scenarioGroups: ScenarioGroupDto[];
+}
+
+export interface FeatureEnvironmentStatusDto {
+  environment: string;
+  latestResult: LatestScenarioResult | null;
 }
 
 export interface RecordScenarioResultInput {
@@ -447,6 +453,7 @@ export async function createSpexorApp(
           issueCount: specFile.issueCount,
           issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
           metadata: emptyMetadata(),
+          environmentStatuses: [],
           description: "",
           background: [],
           scenarioGroups: []
@@ -457,6 +464,15 @@ export async function createSpexorApp(
         database
           .getFeatureLatestResults(featureId)
           .map((result) => [result.scenarioKey, result] as const)
+      );
+      const latestEnvironmentResults = new Map(
+        database
+          .getFeatureLatestResultsByEnvironment(featureId)
+          .map((result) => [result.environment ?? "", result] as const)
+      );
+      const metadata = parseJson<FeatureMetadata>(
+        feature.metadataJson,
+        emptyMetadata()
       );
 
       const groupedScenarios = new Map<string, ScenarioGroupDto>();
@@ -514,10 +530,11 @@ export async function createSpexorApp(
         parseHealth: feature.parseHealth as ParseHealth,
         issueCount: feature.issueCount,
         issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
-        metadata: parseJson<FeatureMetadata>(
-          feature.metadataJson,
-          emptyMetadata()
-        ),
+        metadata,
+        environmentStatuses: metadata.environments.map((environment) => ({
+          environment,
+          latestResult: latestEnvironmentResults.get(environment) ?? null
+        })),
         description: feature.description,
         background: parseJson<StepSpec[]>(feature.backgroundJson, []),
         scenarioGroups

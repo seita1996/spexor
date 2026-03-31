@@ -152,10 +152,22 @@ describe("ExecutionSessionPage", () => {
     expect(screen.getByText("Session checklist")).toBeInTheDocument();
     expect(screen.getByText("Scenario steps")).toBeInTheDocument();
     expect(screen.getByText("the login page is open")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Session tester or developer")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Session environment")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Tester or developer")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Environment")).not.toBeInTheDocument();
 
     await userEvent.type(
-      screen.getByLabelText("Tester or developer"),
+      screen.getByLabelText("Session tester or developer"),
       "qa@example.com"
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("Session environment"),
+      "mac-chrome"
     );
     await userEvent.type(screen.getByLabelText("Notes"), "looks good");
     await userEvent.click(screen.getByRole("button", { name: "Save result" }));
@@ -165,6 +177,7 @@ describe("ExecutionSessionPage", () => {
       "scenario-1",
       expect.objectContaining({
         testerName: "qa@example.com",
+        environment: "mac-chrome",
         status: "passed"
       })
     );

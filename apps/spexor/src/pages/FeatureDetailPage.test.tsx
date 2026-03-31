@@ -46,6 +46,12 @@ describe("FeatureDetailPage", () => {
         priority: "high",
         extra: {}
       },
+      environmentStatuses: [
+        {
+          environment: "mac-chrome",
+          latestResult: null
+        }
+      ],
       issues: [],
       scenarioGroups: [
         {
@@ -114,6 +120,22 @@ describe("FeatureDetailPage", () => {
         priority: "high",
         extra: {}
       },
+      environmentStatuses: [
+        {
+          environment: "mac-chrome",
+          latestResult: {
+            id: "result-1",
+            runId: "run-1",
+            scenarioId: "scenario-1",
+            testerName: "qa@example.com",
+            environment: "mac-chrome",
+            status: "passed",
+            notes: "looks good",
+            createdAt: "2026-03-28T10:00:00.000Z",
+            attachments: []
+          }
+        }
+      ],
       issues: [],
       scenarioGroups: [
         {
@@ -271,6 +293,22 @@ describe("FeatureDetailPage", () => {
         priority: "high",
         extra: {}
       },
+      environmentStatuses: [
+        {
+          environment: "mac-chrome",
+          latestResult: {
+            id: "result-1",
+            runId: "run-1",
+            scenarioId: "scenario-1",
+            testerName: "qa@example.com",
+            environment: "mac-chrome",
+            status: "failed",
+            notes: "before sync",
+            createdAt: "2026-03-28T10:00:00.000Z",
+            attachments: []
+          }
+        }
+      ],
       issues: [],
       scenarioGroups: [
         {
@@ -441,6 +479,8 @@ describe("FeatureDetailPage", () => {
     );
 
     await screen.findByText("Login");
+    expect(screen.getByText("Latest by environment")).toBeInTheDocument();
+    expect(screen.getAllByText("mac-chrome").length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole("button", { name: "History" }));
     await screen.findByText("Local result not shared yet.");
 

@@ -107,4 +107,36 @@ describe("ScenarioExecutionPanel", () => {
       "bg-primary"
     );
   });
+
+  it("can hide tester and environment fields when the parent provides fixed values", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ScenarioExecutionPanel
+        scenarioId="spec::login::1"
+        scenarioTitle="Login with valid credentials"
+        environments={["mac-chrome"]}
+        fixedTesterName="qa@example.com"
+        fixedEnvironment="mac-chrome"
+        showTesterNameField={false}
+        showEnvironmentField={false}
+        isSaving={false}
+        onSubmit={onSubmit}
+      />
+    );
+
+    expect(
+      screen.queryByLabelText("Tester or developer")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Environment")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save result" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        testerName: "qa@example.com",
+        environment: "mac-chrome"
+      })
+    );
+  });
 });
