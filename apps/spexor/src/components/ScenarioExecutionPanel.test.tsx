@@ -80,4 +80,33 @@ describe("ScenarioExecutionPanel", () => {
       "dev@example.com"
     );
   });
+
+  it("resets transient fields after submit when requested", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ScenarioExecutionPanel
+        scenarioId="spec::login::1"
+        scenarioTitle="Login with valid credentials"
+        browsers={["chrome"]}
+        platforms={["mac"]}
+        isSaving={false}
+        resetOnSubmit
+        onSubmit={onSubmit}
+      />
+    );
+
+    await userEvent.type(
+      screen.getByLabelText("Tester or developer"),
+      "qa@example.com"
+    );
+    await userEvent.type(screen.getByLabelText("Notes"), "first run");
+    await userEvent.click(screen.getByRole("button", { name: "failed" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save result" }));
+
+    expect(await screen.findByLabelText("Notes")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "passed" })).toHaveClass(
+      "bg-primary"
+    );
+  });
 });

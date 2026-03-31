@@ -41,6 +41,7 @@ export function ScenarioExecutionPanel(props: {
   platforms: string[];
   isSaving: boolean;
   saveError?: string | null;
+  resetOnSubmit?: boolean;
   onSubmit: (input: RecordScenarioResultInput) => Promise<void>;
 }) {
   const [testerName, setTesterName] = useState(() => {
@@ -98,6 +99,12 @@ export function ScenarioExecutionPanel(props: {
               label: attachment.label.trim() || undefined
             }))
         });
+
+        if (props.resetOnSubmit ?? false) {
+          setStatus("passed");
+          setNotes("");
+          setAttachments([createEvidenceDraft()]);
+        }
       }}
     >
       <Card className="border-border/70 bg-card/80 shadow-none">

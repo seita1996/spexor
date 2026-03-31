@@ -2,7 +2,11 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSpexorApp, type RecordScenarioResultInput } from "@spexor/app";
+import {
+  createSpexorApp,
+  type CreateExecutionSessionInput,
+  type RecordScenarioResultInput
+} from "@spexor/app";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const { SPEXOR_PROJECT_ROOT, SPEXOR_API_PORT } = process.env;
@@ -26,6 +30,19 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "GET" && pathname === "/api/specs") {
       const items = await spexor.getSpecsList();
       return writeJson(response, 200, items);
+    }
+
+    if (request.method === "GET" && pathname === "/api/sessions") {
+      const items = await spexor.getExecutionSessions();
+      return writeJson(response, 200, items);
+    }
+
+    if (request.method === "POST" && pathname === "/api/sessions") {
+      const body = await readJsonBody(request);
+      const session = await spexor.createExecutionSession(
+        body as CreateExecutionSessionInput
+      );
+      return writeJson(response, 201, session);
     }
 
     if (request.method === "POST" && pathname === "/api/sync") {
@@ -61,6 +78,20 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, detail);
     }
 
+    if (request.method === "GET" && pathname.startsWith("/api/sessions/")) {
+      const sessionPath = pathname.slice("/api/sessions/".length);
+      if (!sessionPath.includes("/")) {
+        const sessionId = decodeURIComponent(sessionPath);
+        const detail = await spexor.getExecutionSession(sessionId);
+        if (!detail) {
+          return writeJson(response, 404, {
+            error: `Execution session not found: ${sessionId}`
+          });
+        }
+        return writeJson(response, 200, detail);
+      }
+    }
+
     if (
       request.method === "GET" &&
       pathname.startsWith("/api/scenarios/") &&
@@ -79,6 +110,29 @@ const server = http.createServer(async (request, response) => {
         });
       }
       return writeJson(response, 200, history);
+    }
+
+    if (
+      request.method === "POST" &&
+      pathname.startsWith("/api/sessions/") &&
+      pathname.includes("/scenarios/") &&
+      pathname.endsWith("/results")
+    ) {
+      const pathMatch = pathname.match(
+        /^\/api\/sessions\/([^/]+)\/scenarios\/(.+)\/results$/
+      );
+      if (!pathMatch) {
+        return writeJson(response, 404, { error: "Route not found." });
+      }
+      const sessionId = decodeURIComponent(pathMatch[1] ?? "");
+      const scenarioId = decodeURIComponent(pathMatch[2] ?? "");
+      const body = await readJsonBody(request);
+      const result = await spexor.recordSessionScenarioResult(
+        sessionId,
+        scenarioId,
+        body as RecordScenarioResultInput
+      );
+      return writeJson(response, 201, result);
     }
 
     if (

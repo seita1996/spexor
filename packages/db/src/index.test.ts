@@ -87,6 +87,41 @@ describe("@spexor/db", () => {
     expect(history).toHaveLength(1);
     expect(history[0]?.testerName).toBe("qa@example.com");
 
+    const session = database.createExecutionSession({
+      name: "Auth smoke",
+      filtersJson: JSON.stringify({
+        search: "",
+        tag: "auth",
+        browser: "",
+        priority: "high"
+      }),
+      items: [
+        {
+          scenarioKey: scenario.scenarioKey,
+          featureKey: parsed.relativePath,
+          featureTitle: "Login",
+          scenarioTitle: "Login with valid credentials",
+          sourceLine: 10,
+          sortOrder: 1
+        }
+      ]
+    });
+
+    expect(session.totalCount).toBe(1);
+    expect(session.status).toBe("active");
+
+    database.linkSessionScenarioResult(session.id, scenario.scenarioKey, saved);
+
+    const sessions = database.getExecutionSessions();
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]?.resolvedCount).toBe(1);
+    expect(sessions[0]?.status).toBe("completed");
+
+    const sessionItems = database.getExecutionSessionItems(session.id);
+    expect(sessionItems).toHaveLength(1);
+    expect(sessionItems[0]?.resolvedStatus).toBe("passed");
+    expect(sessionItems[0]?.latestRunResultId).toBe(saved.id);
+
     database.close();
   });
 });

@@ -2,21 +2,28 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SpecsListPage } from "./SpecsListPage";
 
-const { getSpecsMock, syncSpecsMock } = vi.hoisted(() => ({
-  getSpecsMock: vi.fn(),
-  syncSpecsMock: vi.fn()
-}));
+const { createExecutionSessionMock, getSpecsMock, syncSpecsMock } = vi.hoisted(
+  () => ({
+    createExecutionSessionMock: vi.fn(),
+    getSpecsMock: vi.fn(),
+    syncSpecsMock: vi.fn()
+  })
+);
 
 vi.mock("../lib/api", () => ({
+  createExecutionSession: createExecutionSessionMock,
   getSpecs: getSpecsMock,
   syncSpecs: syncSpecsMock
 }));
 
 describe("SpecsListPage", () => {
   it("filters loaded specs by tag", async () => {
+    createExecutionSessionMock.mockResolvedValue({
+      id: "session-1"
+    });
     getSpecsMock.mockResolvedValue([
       {
         featureId: "specs/manual/login.feature",
@@ -73,8 +80,14 @@ describe("SpecsListPage", () => {
     ]);
 
     render(
-      <MemoryRouter>
-        <SpecsListPage />
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<SpecsListPage />} />
+          <Route
+            path="/sessions/:sessionId"
+            element={<div>Session page</div>}
+          />
+        </Routes>
       </MemoryRouter>
     );
 
@@ -90,5 +103,20 @@ describe("SpecsListPage", () => {
     });
 
     expect(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session from filters" })
+    );
+
+    expect(createExecutionSessionMock).toHaveBeenCalledWith({
+      filters: {
+        search: "",
+        tag: "auth",
+        browser: "",
+        priority: ""
+      }
+    });
+
+    await screen.findByText("Session page");
   });
 });

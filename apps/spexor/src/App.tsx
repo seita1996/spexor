@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { ThemeToggle } from "./components/theme-toggle";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
+import { ExecutionSessionPage } from "./pages/ExecutionSessionPage";
 import { FeatureDetailPage } from "./pages/FeatureDetailPage";
 import { SpecsListPage } from "./pages/SpecsListPage";
 
@@ -35,6 +36,10 @@ export function App() {
 
         <Routes>
           <Route path="/" element={<SpecsListPage />} />
+          <Route
+            path="/sessions/:sessionId"
+            element={<ExecutionSessionPage />}
+          />
           <Route path="/features/*" element={<FeatureDetailPage />} />
         </Routes>
       </div>

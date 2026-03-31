@@ -111,9 +111,43 @@ Feature: User login
     expect(history?.sharedHistoryEnabled).toBe(true);
     expect(history?.sharedHistory[0]?.testerName).toBe("shared@example.com");
 
+    const session = await app.createExecutionSession({
+      filters: {
+        search: "",
+        tag: "auth",
+        browser: "chrome",
+        priority: "high"
+      }
+    });
+    expect(session.totalCount).toBe(1);
+    expect(session.items[0]?.scenarioId).toBe(scenarioId);
+    expect(session.items[0]?.browsers).toEqual(["chrome"]);
+
+    await app.recordSessionScenarioResult(session.id, scenarioId, {
+      testerName: "qa@example.com",
+      status: "passed",
+      notes: "rerun after fix"
+    });
+
+    const savedSession = await app.getExecutionSession(session.id);
+    expect(savedSession?.resolvedCount).toBe(1);
+    expect(savedSession?.status).toBe("completed");
+    expect(savedSession?.items[0]?.resolvedStatus).toBe("passed");
+
+    await expect(
+      app.createExecutionSession({
+        filters: {
+          search: "missing",
+          tag: "",
+          browser: "",
+          priority: ""
+        }
+      })
+    ).rejects.toThrow("No scenarios matched the current filters.");
+
     const exported = await app.exportRunResultsNdjson();
     expect(exported.projectId).toBe("qa-console");
-    expect(exported.itemCount).toBe(1);
+    expect(exported.itemCount).toBe(2);
     expect(exported.ndjson).toContain(`"testerName":"qa@example.com"`);
 
     await app.close();

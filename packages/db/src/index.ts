@@ -80,6 +80,31 @@ export interface RecordedRunRecord extends LatestScenarioResult {
   scenarioTitle: string;
 }
 
+export interface ExecutionSessionRecord {
+  id: string;
+  name: string;
+  status: "active" | "completed";
+  createdAt: string;
+  completedAt: string | null;
+  filtersJson: string;
+  totalCount: number;
+}
+
+export interface ExecutionSessionItemRecord {
+  sessionId: string;
+  scenarioKey: string;
+  featureKey: string;
+  featureTitle: string;
+  scenarioTitle: string;
+  sourceLine: number | null;
+  exampleIndex: number | null;
+  sortOrder: number;
+  latestRunResultId: string | null;
+  resolvedStatus: RunStatus | null;
+  resolvedAt: string | null;
+  isScenarioActive: boolean;
+}
+
 export interface RecordScenarioRunInput {
   scenarioKey: string;
   featureKey: string;
@@ -89,6 +114,20 @@ export interface RecordScenarioRunInput {
   status: RunStatus;
   notes?: string | undefined;
   attachments: EvidenceRef[];
+}
+
+export interface CreateExecutionSessionInput {
+  name: string;
+  filtersJson: string;
+  items: Array<{
+    scenarioKey: string;
+    featureKey: string;
+    featureTitle: string;
+    scenarioTitle: string;
+    sourceLine?: number | null;
+    exampleIndex?: number | null;
+    sortOrder: number;
+  }>;
 }
 
 export interface SpexorDatabase {
@@ -107,6 +146,26 @@ export interface SpexorDatabase {
   ): ScenarioHistoryEntry[];
   getRecordedRuns(limit?: number): RecordedRunRecord[];
   recordScenarioRun(input: RecordScenarioRunInput): ScenarioHistoryEntry;
+  createExecutionSession(
+    input: CreateExecutionSessionInput
+  ): ExecutionSessionRecord;
+  getExecutionSessions(): Array<
+    ExecutionSessionRecord & {
+      resolvedCount: number;
+      nextScenarioKey: string | null;
+    }
+  >;
+  getExecutionSession(sessionId: string):
+    | (ExecutionSessionRecord & {
+        resolvedCount: number;
+      })
+    | null;
+  getExecutionSessionItems(sessionId: string): ExecutionSessionItemRecord[];
+  linkSessionScenarioResult(
+    sessionId: string,
+    scenarioKey: string,
+    result: LatestScenarioResult
+  ): void;
 }
 
 interface SpecFileRow {
@@ -176,6 +235,36 @@ interface AttachmentRow {
   kind: unknown;
   value: unknown;
   label: unknown;
+}
+
+interface ExecutionSessionRow {
+  id: unknown;
+  name: unknown;
+  status: unknown;
+  created_at: unknown;
+  completed_at: unknown;
+  filters_json: unknown;
+  total_count: unknown;
+}
+
+interface ExecutionSessionSummaryRow extends ExecutionSessionRow {
+  resolved_count: unknown;
+  next_scenario_key: unknown;
+}
+
+interface ExecutionSessionItemRow {
+  session_id: unknown;
+  scenario_key: unknown;
+  feature_key: unknown;
+  feature_title: unknown;
+  scenario_title: unknown;
+  source_line: unknown;
+  example_index: unknown;
+  sort_order: unknown;
+  latest_run_result_id: unknown;
+  resolved_status: unknown;
+  resolved_at: unknown;
+  scenario_active: unknown;
 }
 
 type SpecOverviewRow = SpecFileRow & { scenario_count: unknown };
@@ -261,11 +350,40 @@ const schema = `
     FOREIGN KEY (run_result_id) REFERENCES run_results(id)
   );
 
+  CREATE TABLE IF NOT EXISTS execution_sessions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    filters_json TEXT NOT NULL,
+    total_count INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS execution_session_items (
+    session_id TEXT NOT NULL,
+    scenario_key TEXT NOT NULL,
+    feature_key TEXT NOT NULL,
+    feature_title TEXT NOT NULL,
+    scenario_title TEXT NOT NULL,
+    source_line INTEGER,
+    example_index INTEGER,
+    sort_order INTEGER NOT NULL,
+    latest_run_result_id TEXT,
+    resolved_status TEXT,
+    resolved_at TEXT,
+    PRIMARY KEY (session_id, scenario_key),
+    FOREIGN KEY (session_id) REFERENCES execution_sessions(id),
+    FOREIGN KEY (latest_run_result_id) REFERENCES run_results(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_spec_files_active ON spec_files(is_active);
   CREATE INDEX IF NOT EXISTS idx_features_active ON features(is_active);
   CREATE INDEX IF NOT EXISTS idx_scenarios_feature_active ON scenarios(feature_key, is_active, sort_order);
   CREATE INDEX IF NOT EXISTS idx_run_results_scenario_created ON run_results(scenario_key, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_attachments_run_result ON attachments(run_result_id);
+  CREATE INDEX IF NOT EXISTS idx_execution_sessions_status_created ON execution_sessions(status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_execution_session_items_session_order ON execution_session_items(session_id, sort_order);
 `;
 
 export function initDatabase(dbPath: string): SpexorDatabase {
@@ -647,6 +765,170 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       }
 
       return latestRecord;
+    },
+    createExecutionSession(input) {
+      const sessionId = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      runTransaction(database, () => {
+        database
+          .prepare(`
+            INSERT INTO execution_sessions (
+              id, name, status, created_at, completed_at, filters_json, total_count
+            ) VALUES (?, ?, 'active', ?, NULL, ?, ?)
+          `)
+          .run(
+            sessionId,
+            input.name,
+            now,
+            input.filtersJson,
+            input.items.length
+          );
+
+        const insertItem = database.prepare(`
+          INSERT INTO execution_session_items (
+            session_id, scenario_key, feature_key, feature_title, scenario_title,
+            source_line, example_index, sort_order, latest_run_result_id,
+            resolved_status, resolved_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
+        `);
+
+        for (const item of input.items) {
+          insertItem.run(
+            sessionId,
+            item.scenarioKey,
+            item.featureKey,
+            item.featureTitle,
+            item.scenarioTitle,
+            item.sourceLine ?? null,
+            item.exampleIndex ?? null,
+            item.sortOrder
+          );
+        }
+      });
+
+      const session = this.getExecutionSession(sessionId);
+      if (!session) {
+        throw new Error(`Failed to load execution session: ${sessionId}`);
+      }
+
+      return session;
+    },
+    getExecutionSessions() {
+      const rows = database
+        .prepare(`
+          SELECT
+            s.*,
+            COALESCE(
+              (
+                SELECT COUNT(*)
+                FROM execution_session_items items
+                WHERE items.session_id = s.id
+                  AND items.resolved_status IS NOT NULL
+              ),
+              0
+            ) AS resolved_count,
+            (
+              SELECT items.scenario_key
+              FROM execution_session_items items
+              WHERE items.session_id = s.id
+                AND items.resolved_status IS NULL
+              ORDER BY items.sort_order ASC
+              LIMIT 1
+            ) AS next_scenario_key
+          FROM execution_sessions s
+          ORDER BY s.created_at DESC
+        `)
+        .all() as unknown as ExecutionSessionSummaryRow[];
+
+      return rows.map(toExecutionSessionSummaryRecord);
+    },
+    getExecutionSession(sessionId) {
+      const row = database
+        .prepare(`
+          SELECT
+            s.*,
+            COALESCE(
+              (
+                SELECT COUNT(*)
+                FROM execution_session_items items
+                WHERE items.session_id = s.id
+                  AND items.resolved_status IS NOT NULL
+              ),
+              0
+            ) AS resolved_count,
+            NULL AS next_scenario_key
+          FROM execution_sessions s
+          WHERE s.id = ?
+          LIMIT 1
+        `)
+        .get(sessionId) as unknown as ExecutionSessionSummaryRow | undefined;
+      return row ? toExecutionSessionSummaryRecord(row) : null;
+    },
+    getExecutionSessionItems(sessionId) {
+      const rows = database
+        .prepare(`
+          SELECT
+            items.*,
+            COALESCE(s.is_active, 0) AS scenario_active
+          FROM execution_session_items items
+          LEFT JOIN scenarios s ON s.scenario_key = items.scenario_key
+          WHERE items.session_id = ?
+          ORDER BY items.sort_order ASC
+        `)
+        .all(sessionId) as unknown as ExecutionSessionItemRow[];
+
+      return rows.map(toExecutionSessionItemRecord);
+    },
+    linkSessionScenarioResult(sessionId, scenarioKey, result) {
+      const now = result.createdAt;
+
+      runTransaction(database, () => {
+        const existing = database
+          .prepare(`
+            SELECT session_id
+            FROM execution_session_items
+            WHERE session_id = ? AND scenario_key = ?
+            LIMIT 1
+          `)
+          .get(sessionId, scenarioKey) as { session_id?: unknown } | undefined;
+
+        if (!existing) {
+          throw new Error(
+            `Execution session item not found: ${sessionId}/${scenarioKey}`
+          );
+        }
+
+        database
+          .prepare(`
+            UPDATE execution_session_items
+            SET latest_run_result_id = ?, resolved_status = ?, resolved_at = ?
+            WHERE session_id = ? AND scenario_key = ?
+          `)
+          .run(result.id, result.status, now, sessionId, scenarioKey);
+
+        const unresolvedCount = Number(
+          (
+            database
+              .prepare(`
+                SELECT COUNT(*) AS unresolved_count
+                FROM execution_session_items
+                WHERE session_id = ? AND resolved_status IS NULL
+              `)
+              .get(sessionId) as { unresolved_count?: unknown } | undefined
+          )?.unresolved_count ?? 0
+        );
+
+        database
+          .prepare(`
+            UPDATE execution_sessions
+            SET
+              status = CASE WHEN ? = 0 THEN 'completed' ELSE 'active' END,
+              completed_at = CASE WHEN ? = 0 THEN COALESCE(completed_at, ?) ELSE NULL END
+            WHERE id = ?
+          `)
+          .run(unresolvedCount, unresolvedCount, now, sessionId);
+      });
     }
   };
 }
@@ -874,6 +1156,53 @@ function toScenarioRecord(row: ScenarioRow): ScenarioRecord {
     sortOrder: Number(row.sort_order),
     isActive: Number(row.is_active) === 1,
     syncedAt: String(row.synced_at)
+  };
+}
+
+function toExecutionSessionRecord(
+  row: ExecutionSessionRow
+): ExecutionSessionRecord {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    status: String(row.status) as ExecutionSessionRecord["status"],
+    createdAt: String(row.created_at),
+    completedAt: row.completed_at ? String(row.completed_at) : null,
+    filtersJson: String(row.filters_json),
+    totalCount: Number(row.total_count)
+  };
+}
+
+function toExecutionSessionSummaryRecord(row: ExecutionSessionSummaryRow) {
+  return {
+    ...toExecutionSessionRecord(row),
+    resolvedCount: Number(row.resolved_count ?? 0),
+    nextScenarioKey: row.next_scenario_key
+      ? String(row.next_scenario_key)
+      : null
+  };
+}
+
+function toExecutionSessionItemRecord(
+  row: ExecutionSessionItemRow
+): ExecutionSessionItemRecord {
+  return {
+    sessionId: String(row.session_id),
+    scenarioKey: String(row.scenario_key),
+    featureKey: String(row.feature_key),
+    featureTitle: String(row.feature_title),
+    scenarioTitle: String(row.scenario_title),
+    sourceLine: row.source_line === null ? null : Number(row.source_line),
+    exampleIndex: row.example_index === null ? null : Number(row.example_index),
+    sortOrder: Number(row.sort_order),
+    latestRunResultId: row.latest_run_result_id
+      ? String(row.latest_run_result_id)
+      : null,
+    resolvedStatus: row.resolved_status
+      ? (String(row.resolved_status) as RunStatus)
+      : null,
+    resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
+    isScenarioActive: Number(row.scenario_active) === 1
   };
 }
 
