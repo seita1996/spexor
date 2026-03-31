@@ -37,6 +37,16 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, items);
     }
 
+    if (request.method === "GET" && pathname === "/api/shared-results/status") {
+      const status = await spexor.getSharedSyncStatus();
+      return writeJson(response, 200, status);
+    }
+
+    if (request.method === "POST" && pathname === "/api/shared-results/sync") {
+      const result = await spexor.syncSharedResults();
+      return writeJson(response, 200, result);
+    }
+
     if (request.method === "POST" && pathname === "/api/sessions") {
       const body = await readJsonBody(request);
       const session = await spexor.createExecutionSession(

@@ -5,16 +5,21 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SpecsListPage } from "./SpecsListPage";
 
-const { createExecutionSessionMock, getSpecsMock, syncSpecsMock } = vi.hoisted(
-  () => ({
-    createExecutionSessionMock: vi.fn(),
-    getSpecsMock: vi.fn(),
-    syncSpecsMock: vi.fn()
-  })
-);
+const {
+  createExecutionSessionMock,
+  getSharedSyncStatusMock,
+  getSpecsMock,
+  syncSpecsMock
+} = vi.hoisted(() => ({
+  createExecutionSessionMock: vi.fn(),
+  getSharedSyncStatusMock: vi.fn(),
+  getSpecsMock: vi.fn(),
+  syncSpecsMock: vi.fn()
+}));
 
 vi.mock("../lib/api", () => ({
   createExecutionSession: createExecutionSessionMock,
+  getSharedSyncStatus: getSharedSyncStatusMock,
   getSpecs: getSpecsMock,
   syncSpecs: syncSpecsMock
 }));
@@ -23,6 +28,11 @@ describe("SpecsListPage", () => {
   it("filters loaded specs by tag", async () => {
     createExecutionSessionMock.mockResolvedValue({
       id: "session-1"
+    });
+    getSharedSyncStatusMock.mockResolvedValue({
+      enabled: true,
+      projectId: "qa-console",
+      offlineLike: false
     });
     getSpecsMock.mockResolvedValue([
       {
@@ -93,6 +103,9 @@ describe("SpecsListPage", () => {
 
     await screen.findByText("Login");
     expect(screen.getByText("Cart")).toBeInTheDocument();
+    expect(
+      screen.getByText("Shared connected: qa-console")
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Open feature")).toHaveLength(2);
 
     await userEvent.selectOptions(screen.getByLabelText("Tag"), "auth");

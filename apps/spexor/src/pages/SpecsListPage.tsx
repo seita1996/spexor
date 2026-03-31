@@ -1,4 +1,4 @@
-import type { SpecsListItemDto } from "@spexor/app";
+import type { SharedSyncStatusDto, SpecsListItemDto } from "@spexor/app";
 import {
   FilterBar,
   MetadataChips,
@@ -16,7 +16,12 @@ import {
   CardHeader,
   CardTitle
 } from "../components/ui/card";
-import { createExecutionSession, getSpecs, syncSpecs } from "../lib/api";
+import {
+  createExecutionSession,
+  getSharedSyncStatus,
+  getSpecs,
+  syncSpecs
+} from "../lib/api";
 
 const emptyFilter = {
   search: "",
@@ -32,6 +37,8 @@ export function SpecsListPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingSession, setStartingSession] = useState(false);
+  const [sharedSyncStatus, setSharedSyncStatus] =
+    useState<SharedSyncStatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(filters.search);
 
@@ -41,8 +48,10 @@ export function SpecsListPage() {
     async function load() {
       try {
         const data = await getSpecs();
+        const syncStatus = await getSharedSyncStatus();
         if (!cancelled) {
           setItems(data);
+          setSharedSyncStatus(syncStatus);
           setError(null);
         }
       } catch (loadError) {
@@ -142,6 +151,11 @@ export function SpecsListPage() {
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                 3. Record the outcome for the scenario you just tested
               </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 dark:text-muted-foreground">
+              {sharedSyncStatus?.enabled
+                ? `Shared connected: ${sharedSyncStatus.projectId}`
+                : "Local only: shared results not configured"}
             </div>
           </CardHeader>
         </Card>

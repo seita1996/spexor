@@ -122,6 +122,17 @@ describe("@spexor/db", () => {
     expect(sessionItems[0]?.resolvedStatus).toBe("passed");
     expect(sessionItems[0]?.latestRunResultId).toBe(saved.id);
 
+    const syncState = database.upsertSharedSyncState({
+      projectId: "qa-console",
+      lastSyncAt: "2026-03-31T00:00:00.000Z",
+      lastSyncError: null,
+      lastAttemptAt: "2026-03-31T00:00:00.000Z"
+    });
+    expect(syncState.projectId).toBe("qa-console");
+    expect(database.getSharedSyncState("qa-console")?.lastSyncAt).toBe(
+      "2026-03-31T00:00:00.000Z"
+    );
+
     database.close();
   });
 });

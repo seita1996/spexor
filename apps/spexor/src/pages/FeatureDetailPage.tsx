@@ -25,7 +25,12 @@ import {
   DialogHeader,
   DialogTitle
 } from "../components/ui/dialog";
-import { getFeature, getScenarioHistory, saveScenarioRun } from "../lib/api";
+import {
+  getFeature,
+  getScenarioHistory,
+  saveScenarioRun,
+  syncSharedResults
+} from "../lib/api";
 
 export function FeatureDetailPage() {
   const params = useParams();
@@ -37,6 +42,8 @@ export function FeatureDetailPage() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncingShared, setSyncingShared] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -100,6 +107,7 @@ export function FeatureDetailPage() {
     setActiveScenarioId(null);
     setPanelMode(null);
     setSaveError(null);
+    setSyncMessage(null);
     setHistory(null);
   };
 
@@ -405,43 +413,117 @@ export function FeatureDetailPage() {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  <section className="grid gap-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Local history
+                  <section className="grid gap-3 rounded-xl border border-border bg-muted/25 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="grid gap-1">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Shared sync
+                        </div>
+                        <div className="text-sm text-foreground">
+                          {history?.syncStatus.enabled
+                            ? history.syncStatus.lastSyncError
+                              ? "Sync failed. Local history is still available."
+                              : history.syncStatus.lastSyncAt
+                                ? `Connected to ${history.syncStatus.projectId}. Last synced ${new Date(
+                                    history.syncStatus.lastSyncAt
+                                  ).toLocaleString()}.`
+                                : `Connected to ${history.syncStatus.projectId}. No sync yet.`
+                            : "Local-only mode. Shared results are not configured."}
+                        </div>
+                      </div>
+                      {history?.syncStatus.enabled ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={syncingShared}
+                          onClick={async () => {
+                            if (!activeScenario) {
+                              return;
+                            }
+                            try {
+                              setSyncingShared(true);
+                              setSyncMessage(null);
+                              await syncSharedResults();
+                              const nextHistory = await getScenarioHistory(
+                                activeScenario.id
+                              );
+                              setHistory(nextHistory);
+                              setSyncMessage("Shared history updated.");
+                            } catch (syncError) {
+                              setSyncMessage(
+                                syncError instanceof Error
+                                  ? syncError.message
+                                  : "Failed to sync shared results."
+                              );
+                            } finally {
+                              setSyncingShared(false);
+                            }
+                          }}
+                        >
+                          {syncingShared ? "Syncing..." : "Sync now"}
+                        </Button>
+                      ) : null}
                     </div>
-                    <RunHistoryList
-                      items={history?.history ?? []}
-                      emptyMessage="This scenario has not been executed locally yet."
-                    />
+
+                    {history?.syncStatus.lastSyncError ? (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                        {history.syncStatus.lastSyncError}
+                      </div>
+                    ) : null}
+
+                    {syncMessage ? (
+                      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
+                        {syncMessage}
+                      </div>
+                    ) : null}
                   </section>
 
-                  {history?.sharedHistoryEnabled ? (
+                  <section className="grid gap-3 rounded-xl border border-border bg-card/80 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Latest delta
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm text-foreground">
+                      {history?.delta.summaryLabel}
+                    </div>
+                  </section>
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <section className="grid gap-3">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Local history
+                      </div>
+                      <RunHistoryList
+                        items={history?.history ?? []}
+                        emptyMessage="This scenario has not been executed locally yet."
+                      />
+                    </section>
+
                     <section className="grid gap-3">
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         Shared history
                       </div>
 
-                      {history.sharedHistoryError ? (
-                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-                          {history.sharedHistoryError}
+                      {history?.sharedHistoryEnabled ? (
+                        <RunHistoryList
+                          items={(history?.sharedHistory ?? []).map((item) => ({
+                            id: item.eventId,
+                            status: item.status,
+                            testerName: item.testerName,
+                            createdAt: item.createdAt,
+                            notes: item.notes,
+                            browser: item.browser,
+                            platform: item.platform,
+                            attachments: item.attachments
+                          }))}
+                          emptyMessage="No shared history has been imported for this scenario yet."
+                        />
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
+                          Shared results are not configured for this project.
                         </div>
-                      ) : null}
-
-                      <RunHistoryList
-                        items={history.sharedHistory.map((item) => ({
-                          id: item.eventId,
-                          status: item.status,
-                          testerName: item.testerName,
-                          createdAt: item.createdAt,
-                          notes: item.notes,
-                          browser: item.browser,
-                          platform: item.platform,
-                          attachments: item.attachments
-                        }))}
-                        emptyMessage="No shared history has been imported for this scenario yet."
-                      />
+                      )}
                     </section>
-                  ) : null}
+                  </div>
                 </div>
               )}
             </div>

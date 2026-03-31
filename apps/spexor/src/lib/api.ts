@@ -6,6 +6,8 @@ import type {
   LatestScenarioResult,
   RecordScenarioResultInput,
   ScenarioHistoryDto,
+  SharedSyncResultDto,
+  SharedSyncStatusDto,
   SpecsListItemDto
 } from "@spexor/app";
 
@@ -59,6 +61,16 @@ export function getExecutionSession(sessionId: string) {
   return fetchJson<ExecutionSessionDetailDto>(
     `/api/sessions/${encodeURIComponent(sessionId)}`
   );
+}
+
+export function getSharedSyncStatus() {
+  return fetchJson<SharedSyncStatusDto>("/api/shared-results/status");
+}
+
+export function syncSharedResults() {
+  return fetchJson<SharedSyncResultDto>("/api/shared-results/sync", {
+    method: "POST"
+  });
 }
 
 export function getFeature(featureId: string) {

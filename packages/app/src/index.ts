@@ -19,6 +19,7 @@ import {
   buildSharedRunEvent,
   defaultProjectId,
   fetchSharedScenarioResults,
+  importSharedRunEvents,
   stringifySharedRunEventsNdjson,
   type SharedRunEvent
 } from "@spexor/results";
@@ -82,6 +83,8 @@ export interface ScenarioHistoryDto {
   history: LatestScenarioResult[];
   sharedHistoryEnabled: boolean;
   sharedHistory: SharedRunEvent[];
+  delta: ScenarioSharedDeltaDto;
+  syncStatus: SharedSyncStatusDto;
   sharedHistoryError?: string | undefined;
 }
 
@@ -90,6 +93,28 @@ export interface RunResultsExportDto {
   exportedAt: string;
   itemCount: number;
   ndjson: string;
+}
+
+export interface SharedSyncStatusDto {
+  enabled: boolean;
+  baseUrl?: string | undefined;
+  projectId?: string | undefined;
+  lastSyncAt?: string | undefined;
+  lastSyncError?: string | undefined;
+  offlineLike: boolean;
+}
+
+export interface ScenarioSharedDeltaDto {
+  localLatest: LatestScenarioResult | null;
+  sharedLatest: SharedRunEvent | null;
+  state: "in-sync" | "local-only" | "shared-newer" | "different";
+  summaryLabel: string;
+}
+
+export interface SharedSyncResultDto {
+  acceptedCount: number;
+  exportedCount: number;
+  syncedAt: string;
 }
 
 export interface ExecutionSessionFilters {
@@ -161,6 +186,8 @@ export interface SpexorApp {
   getFeatureDetail(featureId: string): Promise<FeatureDetailDto | null>;
   getScenarioHistory(scenarioId: string): Promise<ScenarioHistoryDto | null>;
   exportRunResultsNdjson(): Promise<RunResultsExportDto>;
+  getSharedSyncStatus(): Promise<SharedSyncStatusDto>;
+  syncSharedResults(): Promise<SharedSyncResultDto>;
   createExecutionSession(
     input: CreateExecutionSessionInput
   ): Promise<ExecutionSessionDetailDto>;
@@ -354,6 +381,57 @@ export async function createSpexorApp(
     });
   };
 
+  const getSharedSyncStatus = async (): Promise<SharedSyncStatusDto> => {
+    if (!config.sharedResults) {
+      return {
+        enabled: false,
+        offlineLike: false
+      };
+    }
+
+    const state = database.getSharedSyncState(config.sharedResults.projectId);
+    return {
+      enabled: true,
+      baseUrl: config.sharedResults.baseUrl,
+      projectId: config.sharedResults.projectId,
+      lastSyncAt: state?.lastSyncAt ?? undefined,
+      lastSyncError: state?.lastSyncError ?? undefined,
+      offlineLike: classifyOfflineLike(state?.lastSyncError)
+    };
+  };
+
+  const exportRunResultsNdjsonInternal =
+    async (): Promise<RunResultsExportDto> => {
+      const exportedAt = new Date().toISOString();
+      const projectId =
+        config.sharedResults?.projectId ?? defaultProjectId(config.rootDir);
+      const events = database.getRecordedRuns().map((record) =>
+        buildSharedRunEvent({
+          eventId: record.id,
+          projectId,
+          featureId: record.featureKey,
+          scenarioKey: record.scenarioKey,
+          scenarioTitle: record.scenarioTitle,
+          runId: record.runId,
+          testerName: record.testerName,
+          browser: record.browser,
+          platform: record.platform,
+          status: record.status,
+          notes: record.notes,
+          createdAt: record.createdAt,
+          attachments: record.attachments,
+          exportedAt
+        })
+      );
+
+      return {
+        projectId,
+        exportedAt,
+        itemCount: events.length,
+        ndjson: stringifySharedRunEventsNdjson(events)
+      };
+    };
+
   return {
     config,
     syncSpecsFromFilesystem,
@@ -458,6 +536,7 @@ export async function createSpexorApp(
 
       let sharedHistory: SharedRunEvent[] = [];
       let sharedHistoryError: string | undefined;
+      const syncStatus = await getSharedSyncStatus();
 
       if (config.sharedResults) {
         try {
@@ -473,45 +552,66 @@ export async function createSpexorApp(
         }
       }
 
+      const history = database.getScenarioRunHistory(scenarioId);
+
       return {
         scenarioId,
         scenarioTitle: scenario.title,
         featureId: scenario.featureKey,
-        history: database.getScenarioRunHistory(scenarioId),
+        history,
         sharedHistoryEnabled: Boolean(config.sharedResults),
         sharedHistory,
+        delta: buildScenarioSharedDelta(
+          history[0] ?? null,
+          sharedHistory[0] ?? null
+        ),
+        syncStatus,
         sharedHistoryError
       };
     },
-    async exportRunResultsNdjson() {
-      const exportedAt = new Date().toISOString();
-      const projectId =
-        config.sharedResults?.projectId ?? defaultProjectId(config.rootDir);
-      const events = database.getRecordedRuns().map((record) =>
-        buildSharedRunEvent({
-          eventId: record.id,
-          projectId,
-          featureId: record.featureKey,
-          scenarioKey: record.scenarioKey,
-          scenarioTitle: record.scenarioTitle,
-          runId: record.runId,
-          testerName: record.testerName,
-          browser: record.browser,
-          platform: record.platform,
-          status: record.status,
-          notes: record.notes,
-          createdAt: record.createdAt,
-          attachments: record.attachments,
-          exportedAt
-        })
-      );
+    exportRunResultsNdjson: exportRunResultsNdjsonInternal,
+    getSharedSyncStatus,
+    async syncSharedResults() {
+      if (!config.sharedResults) {
+        throw new Error("Shared results are not configured.");
+      }
 
-      return {
-        projectId,
-        exportedAt,
-        itemCount: events.length,
-        ndjson: stringifySharedRunEventsNdjson(events)
-      };
+      const attemptAt = new Date().toISOString();
+      const exported = await exportRunResultsNdjsonInternal();
+
+      try {
+        const imported = await importSharedRunEvents(
+          config.sharedResults,
+          exported.ndjson
+        );
+        const syncedAt = new Date().toISOString();
+        database.upsertSharedSyncState({
+          projectId: config.sharedResults.projectId,
+          lastSyncAt: syncedAt,
+          lastSyncError: null,
+          lastAttemptAt: attemptAt
+        });
+
+        return {
+          acceptedCount: imported.acceptedCount,
+          exportedCount: exported.itemCount,
+          syncedAt
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to sync shared results.";
+        database.upsertSharedSyncState({
+          projectId: config.sharedResults.projectId,
+          lastSyncAt:
+            database.getSharedSyncState(config.sharedResults.projectId)
+              ?.lastSyncAt ?? null,
+          lastSyncError: message,
+          lastAttemptAt: attemptAt
+        });
+        throw new Error(message);
+      }
     },
     recordScenarioResult: recordScenarioResultInternal,
     async createExecutionSession(input) {
@@ -629,6 +729,98 @@ function emptyMetadata(): FeatureMetadata {
     related: [],
     extra: {}
   };
+}
+
+function buildScenarioSharedDelta(
+  localLatest: LatestScenarioResult | null,
+  sharedLatest: SharedRunEvent | null
+): ScenarioSharedDeltaDto {
+  if (!localLatest && !sharedLatest) {
+    return {
+      localLatest,
+      sharedLatest,
+      state: "in-sync",
+      summaryLabel: "No local or shared results yet."
+    };
+  }
+
+  if (localLatest && !sharedLatest) {
+    return {
+      localLatest,
+      sharedLatest,
+      state: "local-only",
+      summaryLabel: "Local result not shared yet."
+    };
+  }
+
+  if (!localLatest && sharedLatest) {
+    return {
+      localLatest,
+      sharedLatest,
+      state: "shared-newer",
+      summaryLabel: "Shared result is newer than local history."
+    };
+  }
+
+  if (
+    localLatest &&
+    sharedLatest &&
+    areResultsEquivalent(localLatest, sharedLatest)
+  ) {
+    return {
+      localLatest,
+      sharedLatest,
+      state: "in-sync",
+      summaryLabel: "Local and shared latest results are in sync."
+    };
+  }
+
+  if (
+    localLatest &&
+    sharedLatest &&
+    new Date(sharedLatest.createdAt).getTime() >
+      new Date(localLatest.createdAt).getTime()
+  ) {
+    return {
+      localLatest,
+      sharedLatest,
+      state: "shared-newer",
+      summaryLabel: "Shared result is newer."
+    };
+  }
+
+  return {
+    localLatest,
+    sharedLatest,
+    state: "different",
+    summaryLabel: "Local and shared latest results differ."
+  };
+}
+
+function areResultsEquivalent(
+  localLatest: LatestScenarioResult,
+  sharedLatest: SharedRunEvent
+): boolean {
+  return (
+    localLatest.createdAt === sharedLatest.createdAt &&
+    localLatest.status === sharedLatest.status &&
+    localLatest.testerName === sharedLatest.testerName &&
+    localLatest.browser === sharedLatest.browser &&
+    localLatest.platform === sharedLatest.platform &&
+    localLatest.notes === sharedLatest.notes
+  );
+}
+
+function classifyOfflineLike(errorMessage: string | null | undefined): boolean {
+  if (!errorMessage) {
+    return false;
+  }
+
+  return (
+    /fetch failed|network|enotfound|econnrefused|timed out/i.test(
+      errorMessage
+    ) || /request failed with 5\d\d/i.test(errorMessage)
+  );
 }
 
 function matchesSpecsFilters(

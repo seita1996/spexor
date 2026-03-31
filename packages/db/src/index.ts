@@ -105,6 +105,13 @@ export interface ExecutionSessionItemRecord {
   isScenarioActive: boolean;
 }
 
+export interface SharedSyncStateRecord {
+  projectId: string;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+  lastAttemptAt: string | null;
+}
+
 export interface RecordScenarioRunInput {
   scenarioKey: string;
   featureKey: string;
@@ -166,6 +173,8 @@ export interface SpexorDatabase {
     scenarioKey: string,
     result: LatestScenarioResult
   ): void;
+  getSharedSyncState(projectId: string): SharedSyncStateRecord | null;
+  upsertSharedSyncState(input: SharedSyncStateRecord): SharedSyncStateRecord;
 }
 
 interface SpecFileRow {
@@ -265,6 +274,13 @@ interface ExecutionSessionItemRow {
   resolved_status: unknown;
   resolved_at: unknown;
   scenario_active: unknown;
+}
+
+interface SharedSyncStateRow {
+  project_id: unknown;
+  last_sync_at: unknown;
+  last_sync_error: unknown;
+  last_attempt_at: unknown;
 }
 
 type SpecOverviewRow = SpecFileRow & { scenario_count: unknown };
@@ -377,6 +393,13 @@ const schema = `
     FOREIGN KEY (latest_run_result_id) REFERENCES run_results(id)
   );
 
+  CREATE TABLE IF NOT EXISTS shared_sync_state (
+    project_id TEXT PRIMARY KEY,
+    last_sync_at TEXT,
+    last_sync_error TEXT,
+    last_attempt_at TEXT
+  );
+
   CREATE INDEX IF NOT EXISTS idx_spec_files_active ON spec_files(is_active);
   CREATE INDEX IF NOT EXISTS idx_features_active ON features(is_active);
   CREATE INDEX IF NOT EXISTS idx_scenarios_feature_active ON scenarios(feature_key, is_active, sort_order);
@@ -384,6 +407,7 @@ const schema = `
   CREATE INDEX IF NOT EXISTS idx_attachments_run_result ON attachments(run_result_id);
   CREATE INDEX IF NOT EXISTS idx_execution_sessions_status_created ON execution_sessions(status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_execution_session_items_session_order ON execution_session_items(session_id, sort_order);
+  CREATE INDEX IF NOT EXISTS idx_shared_sync_state_attempt ON shared_sync_state(last_attempt_at DESC);
 `;
 
 export function initDatabase(dbPath: string): SpexorDatabase {
@@ -929,6 +953,37 @@ export function initDatabase(dbPath: string): SpexorDatabase {
           `)
           .run(unresolvedCount, unresolvedCount, now, sessionId);
       });
+    },
+    getSharedSyncState(projectId) {
+      const row = database
+        .prepare("SELECT * FROM shared_sync_state WHERE project_id = ? LIMIT 1")
+        .get(projectId) as unknown as SharedSyncStateRow | undefined;
+      return row ? toSharedSyncStateRecord(row) : null;
+    },
+    upsertSharedSyncState(input) {
+      database
+        .prepare(`
+          INSERT INTO shared_sync_state (
+            project_id, last_sync_at, last_sync_error, last_attempt_at
+          ) VALUES (?, ?, ?, ?)
+          ON CONFLICT(project_id) DO UPDATE SET
+            last_sync_at = excluded.last_sync_at,
+            last_sync_error = excluded.last_sync_error,
+            last_attempt_at = excluded.last_attempt_at
+        `)
+        .run(
+          input.projectId,
+          input.lastSyncAt,
+          input.lastSyncError,
+          input.lastAttemptAt
+        );
+
+      const record = this.getSharedSyncState(input.projectId);
+      if (!record) {
+        throw new Error(`Failed to load shared sync state: ${input.projectId}`);
+      }
+
+      return record;
     }
   };
 }
@@ -1203,6 +1258,17 @@ function toExecutionSessionItemRecord(
       : null,
     resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
     isScenarioActive: Number(row.scenario_active) === 1
+  };
+}
+
+function toSharedSyncStateRecord(
+  row: SharedSyncStateRow
+): SharedSyncStateRecord {
+  return {
+    projectId: String(row.project_id),
+    lastSyncAt: row.last_sync_at ? String(row.last_sync_at) : null,
+    lastSyncError: row.last_sync_error ? String(row.last_sync_error) : null,
+    lastAttemptAt: row.last_attempt_at ? String(row.last_attempt_at) : null
   };
 }
 
