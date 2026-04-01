@@ -1,4 +1,8 @@
-import { interpolateTemplate, slugify } from "./helpers";
+import {
+  interpolateTemplate,
+  slugify,
+  summarizeLatestStatuses
+} from "./helpers";
 
 describe("@spexor/domain helpers", () => {
   it("slugifies repeated separators without regex backtracking", () => {
@@ -18,5 +22,24 @@ describe("@spexor/domain helpers", () => {
         missing: "value"
       })
     ).toBe("Keep value and trailing <open");
+  });
+
+  it("summarizes statuses by severity order", () => {
+    expect(
+      summarizeLatestStatuses([{ status: "passed" }, { status: "passed" }])
+        .aggregate
+    ).toBe("passed");
+    expect(
+      summarizeLatestStatuses([{ status: "passed" }, { status: "failed" }])
+        .aggregate
+    ).toBe("failed");
+    expect(
+      summarizeLatestStatuses([{ status: "passed" }, { status: "blocked" }])
+        .aggregate
+    ).toBe("blocked");
+    expect(
+      summarizeLatestStatuses([{ status: "passed" }, { status: "skipped" }])
+        .aggregate
+    ).toBe("skipped");
   });
 });

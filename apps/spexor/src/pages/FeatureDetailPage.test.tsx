@@ -49,6 +49,7 @@ describe("FeatureDetailPage", () => {
       environmentStatuses: [
         {
           environment: "mac-chrome",
+          aggregateStatus: null,
           latestResult: null
         }
       ],
@@ -151,6 +152,7 @@ describe("FeatureDetailPage", () => {
       environmentStatuses: [
         {
           environment: "mac-chrome",
+          aggregateStatus: "passed",
           latestResult: {
             id: "result-1",
             runId: "run-1",
@@ -324,6 +326,7 @@ describe("FeatureDetailPage", () => {
       environmentStatuses: [
         {
           environment: "mac-chrome",
+          aggregateStatus: "failed",
           latestResult: {
             id: "result-1",
             runId: "run-1",

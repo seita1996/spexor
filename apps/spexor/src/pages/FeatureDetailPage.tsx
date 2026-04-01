@@ -252,13 +252,13 @@ export function FeatureDetailPage() {
                   {detail.environmentStatuses.map((item) => (
                     <div
                       key={item.environment}
-                      className={`rounded-xl border px-4 py-3 ${statusToneStyles[item.latestResult?.status ?? "not-run"]}`}
+                      className={`rounded-xl border px-4 py-3 ${statusToneStyles[item.aggregateStatus ?? "not-run"]}`}
                     >
                       <div className="text-sm font-semibold">
                         {item.environment}
                       </div>
                       <div className="text-xs uppercase tracking-[0.14em]">
-                        {item.latestResult?.status ?? "not run"}
+                        {item.aggregateStatus ?? "not run"}
                       </div>
                     </div>
                   ))}

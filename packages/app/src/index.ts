@@ -70,6 +70,7 @@ export interface FeatureDetailDto {
 
 export interface FeatureEnvironmentStatusDto {
   environment: string;
+  aggregateStatus: RunStatus | null;
   latestResult: LatestScenarioResult | null;
 }
 
@@ -465,11 +466,8 @@ export async function createSpexorApp(
           .getFeatureLatestResults(featureId)
           .map((result) => [result.scenarioKey, result] as const)
       );
-      const latestEnvironmentResults = new Map(
-        database
-          .getFeatureLatestResultsByEnvironment(featureId)
-          .map((result) => [result.environment ?? "", result] as const)
-      );
+      const latestEnvironmentResults =
+        database.getFeatureLatestResultsByEnvironment(featureId);
       const metadata = parseJson<FeatureMetadata>(
         feature.metadataJson,
         emptyMetadata()
@@ -533,7 +531,15 @@ export async function createSpexorApp(
         metadata,
         environmentStatuses: metadata.environments.map((environment) => ({
           environment,
-          latestResult: latestEnvironmentResults.get(environment) ?? null
+          aggregateStatus: summarizeLatestStatuses(
+            latestEnvironmentResults.filter(
+              (result) => result.environment === environment
+            )
+          ).aggregate,
+          latestResult:
+            latestEnvironmentResults.find(
+              (result) => result.environment === environment
+            ) ?? null
         })),
         description: feature.description,
         background: parseJson<StepSpec[]>(feature.backgroundJson, []),

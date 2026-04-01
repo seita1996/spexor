@@ -70,6 +70,11 @@ export interface ScenarioLatestResultRecord extends LatestScenarioResult {
   scenarioKey: string;
 }
 
+export interface EnvironmentScenarioLatestResultRecord
+  extends LatestScenarioResult {
+  scenarioKey: string;
+}
+
 export interface ScenarioHistoryEntry extends LatestScenarioResult {
   scenarioKey: string;
 }
@@ -148,7 +153,7 @@ export interface SpexorDatabase {
   getFeatureLatestResults(relativePath: string): ScenarioLatestResultRecord[];
   getFeatureLatestResultsByEnvironment(
     relativePath: string
-  ): LatestScenarioResult[];
+  ): EnvironmentScenarioLatestResultRecord[];
   getScenarioRunHistory(
     scenarioKey: string,
     limit?: number
@@ -737,7 +742,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
               runs.browser,
               runs.platform,
               ROW_NUMBER() OVER (
-                PARTITION BY COALESCE(runs.environment, CASE
+                PARTITION BY rr.scenario_key, COALESCE(runs.environment, CASE
                   WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
                   ELSE COALESCE(runs.platform, runs.browser)
                 END)
@@ -762,12 +767,13 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         rows.map((row) => String(row.result_id))
       );
 
-      return rows.map((row) =>
-        toLatestResultRecord(
+      return rows.map((row) => ({
+        scenarioKey: String(row.scenario_key),
+        ...toLatestResultRecord(
           row,
           attachmentMap.get(String(row.result_id)) ?? []
         )
-      );
+      }));
     },
     getScenarioRunHistory,
     getRecordedRuns(limit = 500) {
