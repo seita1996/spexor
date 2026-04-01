@@ -27,8 +27,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.1.1",
-    "@fontsource/ibm-plex-sans": "^5.1.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@spexor/app": "workspace:*",
     "@spexor/config": "workspace:*",
