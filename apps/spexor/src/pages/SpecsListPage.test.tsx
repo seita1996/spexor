@@ -5,20 +5,15 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SpecsListPage } from "./SpecsListPage";
 
-const {
-  createExecutionSessionMock,
-  getSharedSyncStatusMock,
-  getSpecsMock,
-  syncSpecsMock
-} = vi.hoisted(() => ({
-  createExecutionSessionMock: vi.fn(),
-  getSharedSyncStatusMock: vi.fn(),
-  getSpecsMock: vi.fn(),
-  syncSpecsMock: vi.fn()
-}));
+const { getSharedSyncStatusMock, getSpecsMock, syncSpecsMock } = vi.hoisted(
+  () => ({
+    getSharedSyncStatusMock: vi.fn(),
+    getSpecsMock: vi.fn(),
+    syncSpecsMock: vi.fn()
+  })
+);
 
 vi.mock("../lib/api", () => ({
-  createExecutionSession: createExecutionSessionMock,
   getSharedSyncStatus: getSharedSyncStatusMock,
   getSpecs: getSpecsMock,
   syncSpecs: syncSpecsMock
@@ -26,9 +21,6 @@ vi.mock("../lib/api", () => ({
 
 describe("SpecsListPage", () => {
   it("filters loaded specs by tag", async () => {
-    createExecutionSessionMock.mockResolvedValue({
-      id: "session-1"
-    });
     getSharedSyncStatusMock.mockResolvedValue({
       enabled: true,
       projectId: "qa-console",
@@ -91,10 +83,7 @@ describe("SpecsListPage", () => {
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
           <Route path="/" element={<SpecsListPage />} />
-          <Route
-            path="/sessions/:sessionId"
-            element={<div>Session page</div>}
-          />
+          <Route path="/features/*" element={<div>Feature page</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -114,20 +103,12 @@ describe("SpecsListPage", () => {
     });
 
     expect(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Start session from filters" })
+    ).not.toBeInTheDocument();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Start session from filters" })
-    );
+    await userEvent.click(screen.getByRole("link", { name: /open feature/i }));
 
-    expect(createExecutionSessionMock).toHaveBeenCalledWith({
-      filters: {
-        search: "",
-        tag: "auth",
-        environment: "",
-        priority: ""
-      }
-    });
-
-    await screen.findByText("Session page");
+    await screen.findByText("Feature page");
   });
 });

@@ -1,4 +1,8 @@
-import type { FeatureDetailDto, ScenarioHistoryDto } from "@spexor/app";
+import type {
+  ExecutionSessionFilters,
+  FeatureDetailDto,
+  ScenarioHistoryDto
+} from "@spexor/app";
 import {
   MetadataChips,
   ParseHealthBadge,
@@ -7,10 +11,9 @@ import {
   StatusBadge,
   statusToneStyles
 } from "@spexor/ui";
-import { startTransition, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { IssueList } from "../components/IssueList";
-import { ScenarioExecutionPanel } from "../components/ScenarioExecutionPanel";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -27,26 +30,32 @@ import {
   DialogTitle
 } from "../components/ui/dialog";
 import {
+  createExecutionSession,
   getFeature,
   getScenarioHistory,
-  saveScenarioRun,
   syncSharedResults
 } from "../lib/api";
 
+const emptyExecutionFilters: ExecutionSessionFilters = {
+  search: "",
+  tag: "",
+  environment: "",
+  priority: ""
+};
+
 export function FeatureDetailPage() {
   const params = useParams();
+  const navigate = useNavigate();
   const featureId = params["*"] ?? "";
   const [detail, setDetail] = useState<FeatureDetailDto | null>(null);
   const [history, setHistory] = useState<ScenarioHistoryDto | null>(null);
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
-  const [panelMode, setPanelMode] = useState<"run" | "history" | null>(null);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
   const [syncingShared, setSyncingShared] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,8 +115,6 @@ export function FeatureDetailPage() {
 
   const closePanel = () => {
     setActiveScenarioId(null);
-    setPanelMode(null);
-    setSaveError(null);
     setSyncMessage(null);
     setHistory(null);
   };
@@ -171,16 +178,49 @@ export function FeatureDetailPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
-                <div className="text-xs uppercase tracking-[0.22em] text-primary-foreground/75">
-                  Scenario cases
+              <div className="grid gap-3">
+                <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
+                  <div className="text-xs uppercase tracking-[0.22em] text-primary-foreground/75">
+                    Scenario cases
+                  </div>
+                  <div className="mt-2 text-3xl font-semibold">
+                    {detail.scenarioGroups.reduce(
+                      (count, group) => count + group.cases.length,
+                      0
+                    )}
+                  </div>
                 </div>
-                <div className="mt-2 text-3xl font-semibold">
-                  {detail.scenarioGroups.reduce(
-                    (count, group) => count + group.cases.length,
-                    0
-                  )}
-                </div>
+                <Button
+                  type="button"
+                  disabled={startingSession}
+                  className="uppercase tracking-[0.18em]"
+                  onClick={async () => {
+                    try {
+                      setStartingSession(true);
+                      const session = await createExecutionSession({
+                        name: `Feature session: ${detail.title}`,
+                        filters: emptyExecutionFilters,
+                        scenarioIds: detail.scenarioGroups.flatMap((group) =>
+                          group.cases.map((scenarioCase) => scenarioCase.id)
+                        )
+                      });
+                      setError(null);
+                      void navigate(`/sessions/${session.id}`);
+                    } catch (sessionError) {
+                      setError(
+                        sessionError instanceof Error
+                          ? sessionError.message
+                          : "Failed to start execution session."
+                      );
+                    } finally {
+                      setStartingSession(false);
+                    }
+                  }}
+                >
+                  {startingSession
+                    ? "Starting session..."
+                    : "Start session for this feature"}
+                </Button>
               </div>
             </div>
 
@@ -261,7 +301,8 @@ export function FeatureDetailPage() {
                   Step 3
                 </div>
                 <div className="text-sm text-foreground">
-                  Use Run on the scenario you executed and save the outcome.
+                  Start a feature session to work through each case in order and
+                  record outcomes there.
                 </div>
               </div>
             </div>
@@ -314,21 +355,15 @@ export function FeatureDetailPage() {
               latestLabel: scenarioCase.latestResult?.testerName
             }))
           }))}
-          onRun={(scenarioId) => {
-            setActiveScenarioId(scenarioId);
-            setPanelMode("run");
-            setSaveError(null);
-          }}
           onHistory={(scenarioId) => {
             setActiveScenarioId(scenarioId);
-            setPanelMode("history");
             void loadHistory(scenarioId);
           }}
         />
       </div>
 
       <Dialog
-        open={Boolean(activeScenario && panelMode)}
+        open={Boolean(activeScenario)}
         onOpenChange={(open) => {
           if (!open) {
             closePanel();
@@ -336,66 +371,7 @@ export function FeatureDetailPage() {
         }}
       >
         <DialogContent>
-          {activeScenario && panelMode === "run" ? (
-            <div className="grid gap-5">
-              <DialogHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="grid gap-2">
-                    <DialogTitle>Record test result</DialogTitle>
-                    <DialogDescription>
-                      Capture the outcome for this scenario without editing the
-                      `.feature` file.
-                    </DialogDescription>
-                  </div>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Close dialog"
-                    >
-                      Close
-                    </Button>
-                  </DialogClose>
-                </div>
-              </DialogHeader>
-
-              <ScenarioExecutionPanel
-                key={activeScenario.id}
-                scenarioId={activeScenario.id}
-                scenarioTitle={activeScenario.title}
-                environments={detail.metadata.environments}
-                isSaving={saving}
-                saveError={saveError}
-                onSubmit={async (payload) => {
-                  try {
-                    setSaving(true);
-                    setSaveError(null);
-                    await saveScenarioRun(activeScenario.id, payload);
-                    const [nextDetail, nextHistory] = await Promise.all([
-                      getFeature(featureId),
-                      getScenarioHistory(activeScenario.id)
-                    ]);
-                    startTransition(() => {
-                      setDetail(nextDetail);
-                      setHistory(nextHistory);
-                      setPanelMode("history");
-                    });
-                  } catch (submitError) {
-                    setSaveError(
-                      submitError instanceof Error
-                        ? submitError.message
-                        : "Failed to save run."
-                    );
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-              />
-            </div>
-          ) : null}
-
-          {activeScenario && panelMode === "history" ? (
+          {activeScenario ? (
             <div className="grid gap-4">
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4">

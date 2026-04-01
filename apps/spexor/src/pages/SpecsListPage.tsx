@@ -6,7 +6,7 @@ import {
   StatusBadge
 } from "@spexor/ui";
 import { useDeferredValue, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -16,12 +16,7 @@ import {
   CardHeader,
   CardTitle
 } from "../components/ui/card";
-import {
-  createExecutionSession,
-  getSharedSyncStatus,
-  getSpecs,
-  syncSpecs
-} from "../lib/api";
+import { getSharedSyncStatus, getSpecs, syncSpecs } from "../lib/api";
 
 const emptyFilter = {
   search: "",
@@ -31,12 +26,10 @@ const emptyFilter = {
 };
 
 export function SpecsListPage() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<SpecsListItemDto[]>([]);
   const [filters, setFilters] = useState(emptyFilter);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [startingSession, setStartingSession] = useState(false);
   const [sharedSyncStatus, setSharedSyncStatus] =
     useState<SharedSyncStatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +131,7 @@ export function SpecsListPage() {
             <CardDescription className="max-w-3xl text-sm leading-7 text-slate-300 md:text-base dark:text-muted-foreground">
               Start from the spec list the way testers and developers usually
               think: narrow the target, open the feature, inspect steps and last
-              outcome, then save a new manual run without editing the source
+              outcome, then run the feature session without editing the source
               file.
             </CardDescription>
             <div className="grid gap-2 text-sm text-slate-200 md:grid-cols-3 dark:text-muted-foreground">
@@ -149,7 +142,7 @@ export function SpecsListPage() {
                 2. Open a feature to review steps and recent results
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                3. Record the outcome for the scenario you just tested
+                3. Start the feature session and record outcomes there
               </div>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 dark:text-muted-foreground">
@@ -194,35 +187,6 @@ export function SpecsListPage() {
                 className="w-full uppercase tracking-[0.18em]"
               >
                 {refreshing ? "Rescanning..." : "Rescan specs"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                disabled={startingSession || filteredItems.length === 0}
-                onClick={async () => {
-                  try {
-                    setStartingSession(true);
-                    const session = await createExecutionSession({
-                      filters
-                    });
-                    setError(null);
-                    void navigate(`/sessions/${session.id}`);
-                  } catch (sessionError) {
-                    setError(
-                      sessionError instanceof Error
-                        ? sessionError.message
-                        : "Failed to start execution session."
-                    );
-                  } finally {
-                    setStartingSession(false);
-                  }
-                }}
-                className="w-full uppercase tracking-[0.18em]"
-              >
-                {startingSession
-                  ? "Starting session..."
-                  : "Start session from filters"}
               </Button>
             </div>
           </CardContent>

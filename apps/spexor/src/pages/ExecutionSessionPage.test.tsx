@@ -242,4 +242,55 @@ describe("ExecutionSessionPage", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("shows a feature-based summary when the session has no filters", async () => {
+    getExecutionSessionMock.mockReset();
+    getExecutionSessionMock.mockResolvedValue({
+      id: "session-3",
+      name: "Feature session: Login",
+      status: "active",
+      createdAt: "2026-03-31T10:00:00.000Z",
+      completedAt: null,
+      totalCount: 1,
+      resolvedCount: 0,
+      nextScenarioId: "scenario-1",
+      nextFeatureId: "specs/manual/login.feature",
+      filters: {
+        search: "",
+        tag: "",
+        environment: "",
+        priority: ""
+      },
+      items: [
+        {
+          scenarioId: "scenario-1",
+          featureId: "specs/manual/login.feature",
+          featureTitle: "Login",
+          scenarioTitle: "Login with valid credentials",
+          sortOrder: 1,
+          sourceLine: 12,
+          steps: [{ keyword: "Given", text: "the login page is open" }],
+          environments: ["mac-chrome"],
+          latestResult: null,
+          resolvedStatus: null,
+          isStale: false
+        }
+      ]
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/sessions/session-3"]}>
+        <Routes>
+          <Route
+            path="/sessions/:sessionId"
+            element={<ExecutionSessionPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Feature session: Login");
+    expect(screen.getByText("Feature session for Login")).toBeInTheDocument();
+    expect(screen.queryByText("No filters")).not.toBeInTheDocument();
+  });
 });

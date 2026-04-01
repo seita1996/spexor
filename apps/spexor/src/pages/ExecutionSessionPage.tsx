@@ -447,5 +447,12 @@ function summarizeFilters(detail: ExecutionSessionDetailDto): string {
     detail.filters.priority && `priority ${detail.filters.priority}`
   ].filter(Boolean);
 
+  if (labels.length === 0) {
+    const featureIds = [...new Set(detail.items.map((item) => item.featureId))];
+    if (featureIds.length === 1) {
+      return `Feature session for ${detail.items[0]?.featureTitle ?? featureIds[0]}`;
+    }
+  }
+
   return labels.length > 0 ? labels.join(", ") : "No filters";
 }

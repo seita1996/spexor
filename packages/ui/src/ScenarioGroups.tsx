@@ -26,7 +26,6 @@ export interface ScenarioGroupView {
 
 export function ScenarioGroups(props: {
   groups: ScenarioGroupView[];
-  onRun: (scenarioId: string) => void;
   onHistory: (scenarioId: string) => void;
 }) {
   return (
@@ -36,8 +35,8 @@ export function ScenarioGroups(props: {
           Scenario checklist
         </h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Review the case steps, check what happened last time, then use Run to
-          record the outcome you just observed.
+          Review the case steps here, inspect prior results when needed, then
+          use the feature session to record fresh outcomes.
         </p>
       </header>
 
@@ -115,13 +114,6 @@ export function ScenarioGroups(props: {
                         className="inline-flex h-10 items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition hover:bg-muted"
                       >
                         History
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => props.onRun(scenarioCase.id)}
-                        className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-                      >
-                        Run
                       </button>
                     </div>
                   </div>

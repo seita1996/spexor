@@ -6,21 +6,21 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { FeatureDetailPage } from "./FeatureDetailPage";
 
 const {
+  createExecutionSessionMock,
   getFeatureMock,
   getScenarioHistoryMock,
-  saveScenarioRunMock,
   syncSharedResultsMock
 } = vi.hoisted(() => ({
+  createExecutionSessionMock: vi.fn(),
   getFeatureMock: vi.fn(),
   getScenarioHistoryMock: vi.fn(),
-  saveScenarioRunMock: vi.fn(),
   syncSharedResultsMock: vi.fn()
 }));
 
 vi.mock("../lib/api", () => ({
+  createExecutionSession: createExecutionSessionMock,
   getFeature: getFeatureMock,
   getScenarioHistory: getScenarioHistoryMock,
-  saveScenarioRun: saveScenarioRunMock,
   syncSharedResults: syncSharedResultsMock
 }));
 
@@ -29,7 +29,7 @@ describe("FeatureDetailPage", () => {
     vi.clearAllMocks();
   });
 
-  it("opens the run form in a dialog instead of a side panel", async () => {
+  it("starts an execution session for the full feature", async () => {
     getFeatureMock.mockResolvedValue({
       featureId: "specs/manual/login.feature",
       title: "Login",
@@ -69,16 +69,32 @@ describe("FeatureDetailPage", () => {
               tags: ["auth"],
               steps: [{ keyword: "Given", text: "the login page is open" }],
               latestResult: null
+            },
+            {
+              id: "scenario-2",
+              title: "Login with invalid credentials",
+              description: "Sad path",
+              kind: "scenario",
+              tags: ["auth"],
+              steps: [{ keyword: "Then", text: "an error message appears" }],
+              latestResult: null
             }
           ]
         }
       ]
+    });
+    createExecutionSessionMock.mockResolvedValue({
+      id: "session-1"
     });
 
     render(
       <MemoryRouter initialEntries={["/features/specs/manual/login.feature"]}>
         <Routes>
           <Route path="/features/*" element={<FeatureDetailPage />} />
+          <Route
+            path="/sessions/:sessionId"
+            element={<div>Session page</div>}
+          />
         </Routes>
       </MemoryRouter>
     );
@@ -86,21 +102,33 @@ describe("FeatureDetailPage", () => {
     await screen.findByText("Login");
     expect(
       screen.getByText(
-        "Use Run on the scenario you executed and save the outcome."
+        "Start a feature session to work through each case in order and record outcomes there."
       )
     ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Run" }));
-
     expect(
-      await screen.findByRole("dialog", { name: "Record test result" })
+      screen.getByRole("button", { name: "Start session for this feature" })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Tester or developer")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Run" })
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "History" })).toHaveLength(2);
 
-    await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session for this feature" })
+    );
 
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(createExecutionSessionMock).toHaveBeenCalledWith({
+      name: "Feature session: Login",
+      filters: {
+        search: "",
+        tag: "",
+        environment: "",
+        priority: ""
+      },
+      scenarioIds: ["scenario-1", "scenario-2"]
     });
+
+    await screen.findByText("Session page");
   });
 
   it("opens scenario history in a dialog", async () => {
