@@ -234,4 +234,56 @@ Feature: User login
     await app.close();
     vi.unstubAllGlobals();
   });
+
+  it("defaults the recorded environment when a feature has a single environment", async () => {
+    const tempRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "spexor-app-default-env-")
+    );
+    await fs.mkdir(path.join(tempRoot, "specs/manual"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempRoot, "spexor.config.ts"),
+      `export default {
+        specDir: "./specs/manual",
+        dbPath: "./.spexor/test.db",
+        evidenceDir: "./.spexor/evidence",
+        autoScan: false
+      };`,
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(tempRoot, "specs/manual/login.feature"),
+      `---
+title: Login
+environments:
+  - mac-chrome
+---
+
+Feature: User login
+
+  Scenario: Login with valid credentials
+    Given I open the login page
+    Then I should see the dashboard
+`,
+      "utf8"
+    );
+
+    const app = await createSpexorApp({ rootDir: tempRoot });
+    await app.syncSpecsFromFilesystem();
+    const specs = await app.getSpecsList();
+    const detail = await app.getFeatureDetail(specs[0]?.featureId ?? "");
+    const scenarioId = detail?.scenarioGroups[0]?.cases[0]?.id ?? "";
+
+    await app.recordScenarioResult(scenarioId, {
+      testerName: "qa@example.com",
+      status: "passed"
+    });
+
+    const nextDetail = await app.getFeatureDetail(specs[0]?.featureId ?? "");
+    expect(nextDetail?.environmentStatuses[0]?.aggregateStatus).toBe("passed");
+    expect(nextDetail?.environmentStatuses[0]?.latestResult?.environment).toBe(
+      "mac-chrome"
+    );
+
+    await app.close();
+  });
 });

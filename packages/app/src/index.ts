@@ -372,12 +372,21 @@ export async function createSpexorApp(
     const attachmentRefs = (input.attachments ?? []).filter((attachment) =>
       attachment.value.trim()
     );
+    const feature = database.getFeature(scenario.featureKey);
+    const featureMetadata = feature
+      ? parseJson<FeatureMetadata>(feature.metadataJson, emptyMetadata())
+      : emptyMetadata();
+    const resolvedEnvironment =
+      input.environment?.trim() ||
+      (featureMetadata.environments.length === 1
+        ? featureMetadata.environments[0]
+        : undefined);
 
     return database.recordScenarioRun({
       scenarioKey: scenarioId,
       featureKey: scenario.featureKey,
       testerName: input.testerName.trim(),
-      environment: input.environment?.trim() || undefined,
+      environment: resolvedEnvironment,
       status: input.status,
       notes: input.notes?.trim() ?? "",
       attachments: attachmentRefs
