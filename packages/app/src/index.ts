@@ -475,12 +475,21 @@ export async function createSpexorApp(
           .getFeatureLatestResults(featureId)
           .map((result) => [result.scenarioKey, result] as const)
       );
-      const latestEnvironmentResults =
-        database.getFeatureLatestResultsByEnvironment(featureId);
       const metadata = parseJson<FeatureMetadata>(
         feature.metadataJson,
         emptyMetadata()
       );
+      const soleEnvironment =
+        metadata.environments.length === 1 ? metadata.environments[0] : null;
+      const latestEnvironmentResults = [
+        ...database.getFeatureLatestResultsByEnvironment(featureId),
+        ...[...latestResultMap.values()]
+          .filter((result) => !result.environment && soleEnvironment)
+          .map((result) => ({
+            ...result,
+            environment: soleEnvironment ?? undefined
+          }))
+      ];
 
       const groupedScenarios = new Map<string, ScenarioGroupDto>();
       const scenarios = database.getFeatureScenarios(featureId);

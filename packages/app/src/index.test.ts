@@ -155,6 +155,12 @@ Feature: User login
     expect(savedSession?.resolvedCount).toBe(1);
     expect(savedSession?.status).toBe("completed");
     expect(savedSession?.items[0]?.resolvedStatus).toBe("passed");
+    const updatedFeature = await app.getFeatureDetail(
+      firstFeature?.featureId ?? ""
+    );
+    expect(updatedFeature?.environmentStatuses[0]?.aggregateStatus).toBe(
+      "passed"
+    );
 
     await expect(
       app.createExecutionSession({
