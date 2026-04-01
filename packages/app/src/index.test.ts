@@ -89,6 +89,13 @@ environments:
 tags:
   - auth
 priority: high
+verification:
+  manualOnly: false
+  automated:
+    - runner: vitest
+      file: apps/spexor/src/pages/ExecutionSessionPage.test.tsx
+      tests:
+        - "ExecutionSessionPage > loads a session and updates progress after saving a result"
 ---
 
 Feature: User login
@@ -110,6 +117,8 @@ Feature: User login
     expect(firstFeature).toBeDefined();
     const detail = await app.getFeatureDetail(firstFeature?.featureId ?? "");
     expect(detail?.scenarioGroups).toHaveLength(1);
+    expect(detail?.verification.manualOnly).toBe(false);
+    expect(detail?.verification.automated[0]?.runner).toBe("vitest");
 
     const firstGroup = detail?.scenarioGroups[0];
     expect(firstGroup).toBeDefined();
@@ -289,6 +298,10 @@ Feature: User login
     expect(nextDetail?.environmentStatuses[0]?.latestResult?.environment).toBe(
       "mac-chrome"
     );
+    expect(nextDetail?.verification).toEqual({
+      manualOnly: true,
+      automated: []
+    });
 
     await app.close();
   });

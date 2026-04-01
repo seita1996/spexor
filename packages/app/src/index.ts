@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { loadConfig, type ResolvedSpexorConfig } from "@spexor/config";
 import { initDatabase, parseJson, type SpexorDatabase } from "@spexor/db";
 import {
+  type FeatureVerification,
   type EvidenceRef,
   type FeatureMetadata,
   type LatestScenarioResult,
@@ -62,6 +63,7 @@ export interface FeatureDetailDto {
   issueCount: number;
   issues: ParseIssue[];
   metadata: FeatureMetadata;
+  verification: FeatureVerification;
   environmentStatuses: FeatureEnvironmentStatusDto[];
   description: string;
   background: StepSpec[];
@@ -463,6 +465,7 @@ export async function createSpexorApp(
           issueCount: specFile.issueCount,
           issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
           metadata: emptyMetadata(),
+          verification: defaultVerification(),
           environmentStatuses: [],
           description: "",
           background: [],
@@ -547,6 +550,7 @@ export async function createSpexorApp(
         issueCount: feature.issueCount,
         issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
         metadata,
+        verification: metadata.verification,
         environmentStatuses: metadata.environments.map((environment) => ({
           environment,
           aggregateStatus: summarizeLatestStatuses(
@@ -762,7 +766,15 @@ function emptyMetadata(): FeatureMetadata {
     environments: [],
     tags: [],
     related: [],
+    verification: defaultVerification(),
     extra: {}
+  };
+}
+
+function defaultVerification(): FeatureVerification {
+  return {
+    manualOnly: true,
+    automated: []
   };
 }
 
@@ -935,6 +947,8 @@ function buildExecutionSessionName(
 }
 
 export type {
+  AutomatedCheckReference,
+  FeatureVerification,
   LatestScenarioResult,
   ParseIssue,
   RunStatus

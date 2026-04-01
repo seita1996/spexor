@@ -29,6 +29,10 @@ describe("@spexor/db", () => {
           priority: "high",
           owner: "qa@example.com",
           related: [],
+          verification: {
+            manualOnly: true,
+            automated: []
+          },
           extra: {}
         },
         background: [],

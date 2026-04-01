@@ -18,6 +18,13 @@ priority: high
 owner: qa@example.com
 related:
   - https://github.com/example/repo/issues/123
+verification:
+  manualOnly: false
+  automated:
+    - runner: vitest
+      file: apps/spexor/src/pages/ExecutionSessionPage.test.tsx
+      tests:
+        - "ExecutionSessionPage > loads a session and updates progress after saving a result"
 ---
 ```
 
@@ -29,7 +36,12 @@ Supported MVP fields:
 - `priority: low | medium | high`
 - `owner: string`
 - `related: string[]`
+- `verification.manualOnly: boolean`
+- `verification.automated[].runner: vitest | playwright`
+- `verification.automated[].file: string`
+- `verification.automated[].tests: string[]`
 
+If `verification` is omitted, Spexor treats the feature as `manualOnly: true` with no automated links.
 Unknown fields are preserved in metadata but are not first-class UI fields in the MVP.
 
 ## Gherkin support

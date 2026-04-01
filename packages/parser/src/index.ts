@@ -8,8 +8,10 @@ import {
 } from "@cucumber/gherkin";
 import { IdGenerator } from "@cucumber/messages";
 import {
+  type AutomatedCheckReference,
   createScenarioStableId,
   type FeatureMetadata,
+  type FeatureVerification,
   type FeatureSpec,
   inferParseHealth,
   normalizePath,
@@ -33,7 +35,24 @@ const frontmatterSchema = z
     tags: z.array(z.string()).default([]),
     priority: z.enum(["low", "medium", "high"]).optional(),
     owner: z.string().min(1).optional(),
-    related: z.array(z.string()).default([])
+    related: z.array(z.string()).default([]),
+    verification: z
+      .object({
+        manualOnly: z.boolean().default(true),
+        automated: z
+          .array(
+            z.object({
+              runner: z.enum(["vitest", "playwright"]),
+              file: z.string().min(1),
+              tests: z.array(z.string().min(1)).default([])
+            })
+          )
+          .default([])
+      })
+      .default({
+        manualOnly: true,
+        automated: []
+      })
   })
   .passthrough();
 
@@ -123,6 +142,7 @@ function parseFrontmatter(
     environments: [],
     tags: [],
     related: [],
+    verification: defaultVerification(),
     extra: {}
   };
 
@@ -174,12 +194,14 @@ function parseMetadataObject(
     priority?: unknown;
     owner?: unknown;
     related?: unknown;
+    verification?: unknown;
   };
 
   const fallbackMetadata: FeatureMetadata = {
     environments: [],
     tags: [],
     related: [],
+    verification: defaultVerification(),
     extra: {}
   };
 
@@ -198,6 +220,7 @@ function parseMetadataObject(
       priority,
       owner,
       related,
+      verification,
       ...extra
     } = parsed.data;
     return {
@@ -207,6 +230,7 @@ function parseMetadataObject(
       priority,
       owner,
       related,
+      verification,
       extra
     };
   }
@@ -244,6 +268,7 @@ function parseMetadataObject(
     related: Array.isArray(value.related)
       ? value.related.filter((item): item is string => typeof item === "string")
       : [],
+    verification: parseVerification(value.verification),
     extra: Object.fromEntries(
       Object.entries(value).filter(
         ([key]) =>
@@ -255,11 +280,72 @@ function parseMetadataObject(
             "tags",
             "priority",
             "owner",
-            "related"
+            "related",
+            "verification"
           ].includes(key)
       )
     )
   };
+}
+
+function defaultVerification(): FeatureVerification {
+  return {
+    manualOnly: true,
+    automated: []
+  };
+}
+
+function parseVerification(value: unknown): FeatureVerification {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return defaultVerification();
+  }
+
+  const input = value as {
+    manualOnly?: unknown;
+    automated?: unknown;
+  };
+
+  return {
+    manualOnly: typeof input.manualOnly === "boolean" ? input.manualOnly : true,
+    automated: Array.isArray(input.automated)
+      ? input.automated.flatMap(parseAutomatedCheckReference)
+      : []
+  };
+}
+
+function parseAutomatedCheckReference(
+  value: unknown
+): AutomatedCheckReference[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+
+  const input = value as {
+    runner?: unknown;
+    file?: unknown;
+    tests?: unknown;
+  };
+
+  if (
+    (input.runner !== "vitest" && input.runner !== "playwright") ||
+    typeof input.file !== "string" ||
+    input.file.trim() === ""
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      runner: input.runner,
+      file: input.file.trim(),
+      tests: Array.isArray(input.tests)
+        ? input.tests
+            .filter((item): item is string => typeof item === "string")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : []
+    }
+  ];
 }
 
 function normalizeEnvironments(

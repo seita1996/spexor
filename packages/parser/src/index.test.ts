@@ -14,6 +14,13 @@ environments:
 tags:
   - auth
 priority: high
+verification:
+  manualOnly: false
+  automated:
+    - runner: vitest
+      file: apps/spexor/src/pages/FeatureDetailPage.test.tsx
+      tests:
+        - "FeatureDetailPage > starts an execution session for the full feature"
 ---
 
 Feature: User login
@@ -37,6 +44,16 @@ Feature: User login
     expect(parsed.parseHealth).toBe("ok");
     expect(parsed.feature?.metadata.title).toBe("Login");
     expect(parsed.feature?.metadata.environments).toEqual(["mac-chrome"]);
+    expect(parsed.feature?.metadata.verification.manualOnly).toBe(false);
+    expect(parsed.feature?.metadata.verification.automated).toEqual([
+      {
+        runner: "vitest",
+        file: "apps/spexor/src/pages/FeatureDetailPage.test.tsx",
+        tests: [
+          "FeatureDetailPage > starts an execution session for the full feature"
+        ]
+      }
+    ]);
     expect(parsed.feature?.background).toHaveLength(1);
     expect(parsed.feature?.scenarios).toHaveLength(1);
     expect(parsed.feature?.scenarios[0]?.kind).toBe("outline");
@@ -62,6 +79,24 @@ Feature: Broken metadata
     expect(parsed.parseHealth).toBe("warning");
     expect(parsed.issues[0]?.code).toBe("frontmatter_invalid");
     expect(parsed.feature?.title).toBe("Broken metadata");
+  });
+
+  it("defaults verification to manual-only when omitted", () => {
+    const parsed = parseSpecText(
+      `Feature: Manual-only fallback
+
+  Scenario: Review the page
+    Given I open the page
+    Then I inspect the content
+`,
+      filePath,
+      { rootDir }
+    );
+
+    expect(parsed.feature?.metadata.verification).toEqual({
+      manualOnly: true,
+      automated: []
+    });
   });
 
   it("surfaces invalid Gherkin without crashing", () => {

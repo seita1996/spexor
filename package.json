@@ -21,6 +21,7 @@
     "lint": "oxlint .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
+    "test:e2e": "pnpm --filter @spexor/e2e-test test",
     "test:watch": "vitest",
     "guard:fast": "pnpm harness:check && pnpm lint && pnpm typecheck",
     "guard": "pnpm guard:fast && pnpm test",

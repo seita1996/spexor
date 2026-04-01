@@ -1,4 +1,5 @@
 import type {
+  AutomatedCheckReference,
   ExecutionSessionFilters,
   FeatureDetailDto,
   ScenarioHistoryDto
@@ -242,6 +243,45 @@ export function FeatureDetailPage() {
                 emptyLabel="no links"
               />
             </div>
+
+            <section className="grid gap-3 rounded-xl border border-border bg-card/70 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Verification mode
+                </div>
+                <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-foreground">
+                  {detail.verification.manualOnly
+                    ? "Manual only"
+                    : "Automation linked"}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {detail.verification.manualOnly
+                  ? "Use the feature session and scenario history here to validate this feature manually."
+                  : "Manual session and history stay available, and linked automated checks are listed below for faster review."}
+              </div>
+            </section>
+
+            {detail.verification.automated.length > 0 ? (
+              <section className="grid gap-4 rounded-xl border border-border bg-muted/25 p-4">
+                <div className="grid gap-1">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Automated coverage
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Linked Vitest and Playwright checks for this feature.
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {detail.verification.automated.map((reference, index) => (
+                    <AutomatedCoverageCard
+                      key={`${reference.runner}-${reference.file}-${index}`}
+                      reference={reference}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {detail.environmentStatuses.length > 0 ? (
               <section className="grid gap-3 rounded-xl border border-border bg-muted/25 p-4">
@@ -532,4 +572,107 @@ export function FeatureDetailPage() {
       </Dialog>
     </>
   );
+}
+
+function AutomatedCoverageCard(props: { reference: AutomatedCheckReference }) {
+  const tree = buildAutomatedTestTree(props.reference.tests);
+
+  return (
+    <article className="grid gap-3 rounded-xl border border-border bg-card/80 p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="rounded-full border border-border bg-secondary px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-secondary-foreground">
+          {props.reference.runner}
+        </span>
+        <code className="text-sm text-muted-foreground">
+          {props.reference.file}
+        </code>
+      </div>
+      {props.reference.tests.length > 0 ? (
+        <ul className="grid gap-2">
+          {tree.map((node) => (
+            <AutomatedCoverageTreeNode
+              key={`${props.reference.file}-${node.label}`}
+              node={node}
+              depth={0}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          No specific test entries were provided for this file yet.
+        </div>
+      )}
+    </article>
+  );
+}
+
+interface AutomatedCoverageTreeNodeView {
+  label: string;
+  children: AutomatedCoverageTreeNodeView[];
+}
+
+function AutomatedCoverageTreeNode(props: {
+  node: AutomatedCoverageTreeNodeView;
+  depth: number;
+}) {
+  const isLeaf = props.node.children.length === 0;
+
+  return (
+    <li className="grid gap-2">
+      <div
+        className="flex items-center gap-3 rounded-lg border border-border bg-muted/35 px-4 py-3"
+        style={{ marginLeft: `${props.depth * 16}px` }}
+      >
+        <span className="text-xs text-muted-foreground">
+          {isLeaf ? "test" : "describe"}
+        </span>
+        <span className="text-sm font-medium text-foreground">
+          {props.node.label}
+        </span>
+      </div>
+      {props.node.children.length > 0 ? (
+        <ul className="grid gap-2">
+          {props.node.children.map((child) => (
+            <AutomatedCoverageTreeNode
+              key={`${props.node.label}-${child.label}`}
+              node={child}
+              depth={props.depth + 1}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+function buildAutomatedTestTree(
+  testPaths: string[]
+): AutomatedCoverageTreeNodeView[] {
+  const root: AutomatedCoverageTreeNodeView[] = [];
+
+  for (const testPath of testPaths) {
+    const segments = testPath
+      .split(">")
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+
+    if (segments.length === 0) {
+      continue;
+    }
+
+    let currentLevel = root;
+    for (const segment of segments) {
+      let existing = currentLevel.find((node) => node.label === segment);
+      if (!existing) {
+        existing = {
+          label: segment,
+          children: []
+        };
+        currentLevel.push(existing);
+      }
+      currentLevel = existing.children;
+    }
+  }
+
+  return root;
 }

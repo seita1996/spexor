@@ -13,6 +13,8 @@ export type Priority = (typeof priorityValues)[number];
 
 export type EvidenceKind = (typeof evidenceKinds)[number];
 
+export type AutomatedTestRunner = "vitest" | "playwright";
+
 export interface SourceLocation {
   line?: number | undefined;
   column?: number | undefined;
@@ -39,7 +41,19 @@ export interface FeatureMetadata {
   priority?: Priority | undefined;
   owner?: string | undefined;
   related: string[];
+  verification: FeatureVerification;
   extra: Record<string, unknown>;
+}
+
+export interface AutomatedCheckReference {
+  runner: AutomatedTestRunner;
+  file: string;
+  tests: string[];
+}
+
+export interface FeatureVerification {
+  manualOnly: boolean;
+  automated: AutomatedCheckReference[];
 }
 
 export interface StepSpec {

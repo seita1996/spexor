@@ -42,9 +42,17 @@ describe("FeatureDetailPage", () => {
         tags: ["auth"],
         environments: ["mac-chrome"],
         related: [],
+        verification: {
+          manualOnly: true,
+          automated: []
+        },
         owner: "qa@example.com",
         priority: "high",
         extra: {}
+      },
+      verification: {
+        manualOnly: true,
+        automated: []
       },
       environmentStatuses: [
         {
@@ -106,6 +114,8 @@ describe("FeatureDetailPage", () => {
         "Start a feature session to work through each case in order and record outcomes there."
       )
     ).toBeInTheDocument();
+    expect(screen.getByText("Manual only")).toBeInTheDocument();
+    expect(screen.queryByText("Automated coverage")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Start session for this feature" })
     ).toBeInTheDocument();
@@ -145,9 +155,33 @@ describe("FeatureDetailPage", () => {
         tags: ["auth"],
         environments: ["mac-chrome"],
         related: [],
+        verification: {
+          manualOnly: false,
+          automated: [
+            {
+              runner: "vitest",
+              file: "apps/spexor/src/pages/FeatureDetailPage.test.tsx",
+              tests: [
+                "FeatureDetailPage > history dialog > opens scenario history in a dialog"
+              ]
+            }
+          ]
+        },
         owner: "qa@example.com",
         priority: "high",
         extra: {}
+      },
+      verification: {
+        manualOnly: false,
+        automated: [
+          {
+            runner: "vitest",
+            file: "apps/spexor/src/pages/FeatureDetailPage.test.tsx",
+            tests: [
+              "FeatureDetailPage > history dialog > opens scenario history in a dialog"
+            ]
+          }
+        ]
       },
       environmentStatuses: [
         {
@@ -284,6 +318,16 @@ describe("FeatureDetailPage", () => {
     );
 
     await screen.findByText("Login");
+    expect(screen.getByText("Automation linked")).toBeInTheDocument();
+    expect(screen.getByText("Automated coverage")).toBeInTheDocument();
+    expect(
+      screen.getByText("apps/spexor/src/pages/FeatureDetailPage.test.tsx")
+    ).toBeInTheDocument();
+    expect(screen.getByText("FeatureDetailPage")).toBeInTheDocument();
+    expect(screen.getByText("history dialog")).toBeInTheDocument();
+    expect(
+      screen.getByText("opens scenario history in a dialog")
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "History" }));
 
     expect(
@@ -319,9 +363,17 @@ describe("FeatureDetailPage", () => {
         tags: ["auth"],
         environments: ["mac-chrome"],
         related: [],
+        verification: {
+          manualOnly: true,
+          automated: []
+        },
         owner: "qa@example.com",
         priority: "high",
         extra: {}
+      },
+      verification: {
+        manualOnly: true,
+        automated: []
       },
       environmentStatuses: [
         {
