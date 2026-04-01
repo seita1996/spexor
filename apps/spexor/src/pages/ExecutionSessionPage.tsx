@@ -10,6 +10,14 @@ import {
   CardHeader,
   CardTitle
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
 import { getExecutionSession, saveSessionScenarioRun } from "../lib/api";
 
 export function ExecutionSessionPage() {
@@ -23,6 +31,7 @@ export function ExecutionSessionPage() {
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
   const [sessionTesterName, setSessionTesterName] = useState("");
   const [sessionEnvironment, setSessionEnvironment] = useState("");
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +91,10 @@ export function ExecutionSessionPage() {
   const activeSteps = activeItem?.steps ?? [];
   const environmentOptions = useMemo(
     () => getSessionEnvironmentOptions(detail),
+    [detail]
+  );
+  const featureReturnPath = useMemo(
+    () => getSingleFeaturePath(detail),
     [detail]
   );
   const activeItemSupportsEnvironment =
@@ -353,6 +366,12 @@ export function ExecutionSessionPage() {
                         );
                         const nextDetail = await getExecutionSession(detail.id);
                         setDetail(nextDetail);
+                        if (
+                          detail.status !== "completed" &&
+                          nextDetail.status === "completed"
+                        ) {
+                          setCompletionDialogOpen(true);
+                        }
                         setActiveScenarioId(
                           nextDetail.nextScenarioId ??
                             nextDetail.items.find(
@@ -383,6 +402,34 @@ export function ExecutionSessionPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={completionDialogOpen}
+        onOpenChange={setCompletionDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>All tests in this session are complete</DialogTitle>
+            <DialogDescription>
+              All test cases in the execution session have been recorded.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCompletionDialogOpen(false)}
+            >
+              Stay on this session
+            </Button>
+            {featureReturnPath ? (
+              <Link to={featureReturnPath}>
+                <Button type="button">Back to feature</Button>
+              </Link>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -455,4 +502,19 @@ function summarizeFilters(detail: ExecutionSessionDetailDto): string {
   }
 
   return labels.length > 0 ? labels.join(", ") : "No filters";
+}
+
+function getSingleFeaturePath(
+  detail: ExecutionSessionDetailDto | null
+): string | null {
+  if (!detail) {
+    return null;
+  }
+
+  const featureIds = [...new Set(detail.items.map((item) => item.featureId))];
+  if (featureIds.length !== 1) {
+    return null;
+  }
+
+  return `/features/${featureIds[0]}`;
 }

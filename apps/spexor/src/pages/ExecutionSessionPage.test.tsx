@@ -293,4 +293,126 @@ describe("ExecutionSessionPage", () => {
     expect(screen.getByText("Feature session for Login")).toBeInTheDocument();
     expect(screen.queryByText("No filters")).not.toBeInTheDocument();
   });
+
+  it("shows a completion dialog and feature return link when the last test is saved", async () => {
+    getExecutionSessionMock.mockReset();
+    getExecutionSessionMock
+      .mockResolvedValueOnce({
+        id: "session-4",
+        name: "Feature session: Login",
+        status: "active",
+        createdAt: "2026-03-31T10:00:00.000Z",
+        completedAt: null,
+        totalCount: 1,
+        resolvedCount: 0,
+        nextScenarioId: "scenario-1",
+        nextFeatureId: "specs/manual/login.feature",
+        filters: {
+          search: "",
+          tag: "",
+          environment: "",
+          priority: ""
+        },
+        items: [
+          {
+            scenarioId: "scenario-1",
+            featureId: "specs/manual/login.feature",
+            featureTitle: "Login",
+            scenarioTitle: "Login with valid credentials",
+            sortOrder: 1,
+            sourceLine: 12,
+            steps: [{ keyword: "Given", text: "the login page is open" }],
+            environments: ["mac-chrome"],
+            latestResult: null,
+            resolvedStatus: null,
+            isStale: false
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        id: "session-4",
+        name: "Feature session: Login",
+        status: "completed",
+        createdAt: "2026-03-31T10:00:00.000Z",
+        completedAt: "2026-03-31T10:05:00.000Z",
+        totalCount: 1,
+        resolvedCount: 1,
+        nextScenarioId: null,
+        nextFeatureId: null,
+        filters: {
+          search: "",
+          tag: "",
+          environment: "",
+          priority: ""
+        },
+        items: [
+          {
+            scenarioId: "scenario-1",
+            featureId: "specs/manual/login.feature",
+            featureTitle: "Login",
+            scenarioTitle: "Login with valid credentials",
+            sortOrder: 1,
+            sourceLine: 12,
+            steps: [{ keyword: "Given", text: "the login page is open" }],
+            environments: ["mac-chrome"],
+            latestResult: {
+              id: "result-2",
+              runId: "run-2",
+              scenarioId: "scenario-1",
+              testerName: "qa@example.com",
+              environment: "mac-chrome",
+              status: "passed",
+              notes: "done",
+              createdAt: "2026-03-31T10:05:00.000Z",
+              attachments: []
+            },
+            resolvedStatus: "passed",
+            isStale: false
+          }
+        ]
+      });
+    saveSessionScenarioRunMock.mockResolvedValue({
+      id: "result-2"
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/sessions/session-4"]}>
+        <Routes>
+          <Route
+            path="/sessions/:sessionId"
+            element={<ExecutionSessionPage />}
+          />
+          <Route path="/features/*" element={<div>Feature page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Feature session: Login");
+    await userEvent.type(
+      screen.getByLabelText("Session tester or developer"),
+      "qa@example.com"
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("Session environment"),
+      "mac-chrome"
+    );
+    await userEvent.type(screen.getByLabelText("Notes"), "done");
+    await userEvent.click(screen.getByRole("button", { name: "Save result" }));
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: "All tests in this session are complete"
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "All test cases in the execution session have been recorded."
+      )
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Back to feature" })
+    );
+    await screen.findByText("Feature page");
+  });
 });
