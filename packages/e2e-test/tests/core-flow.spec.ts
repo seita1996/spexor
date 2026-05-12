@@ -45,9 +45,8 @@ test.describe("Spexor core flow", () => {
         name: /Feature session: Manual history flow/i
       })
     ).toBeVisible();
-    await page
-      .getByLabel("Session tester or developer")
-      .fill("qa@spexor.local");
+    await expect(page.getByText("Current scenario")).toBeVisible();
+    await page.getByLabel("Session tester").fill("qa@spexor.local");
     await page.getByLabel("Session environment").selectOption("mac-chrome");
     await page.getByLabel("Notes").fill("Manual smoke coverage completed.");
     await page.getByRole("button", { name: "Save result" }).click();

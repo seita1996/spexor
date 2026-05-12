@@ -140,7 +140,7 @@ export function ExecutionSessionPage() {
       : Math.round((detail.resolvedCount / detail.totalCount) * 100);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/">
           <Button
@@ -161,66 +161,54 @@ export function ExecutionSessionPage() {
       </div>
 
       <Card className="border-border/70 bg-card/90">
-        <CardContent className="grid gap-5 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="grid gap-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Execution session
-              </div>
-              <h1 className="text-3xl font-semibold text-foreground">
-                {detail.name}
-              </h1>
-              <div className="text-sm text-muted-foreground">
-                {detail.resolvedCount} / {detail.totalCount} scenarios resolved
-              </div>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,0.85fr))] lg:items-start">
+          <div className="grid gap-1">
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Execution session
             </div>
-
-            <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
-              <div className="text-xs uppercase tracking-[0.22em] text-primary-foreground/75">
-                Progress
-              </div>
-              <div className="mt-2 text-3xl font-semibold">
-                {completionRate}%
-              </div>
+            <h1 className="text-2xl font-semibold text-foreground">
+              {detail.name}
+            </h1>
+            <div className="text-sm text-muted-foreground">
+              {detail.resolvedCount} / {detail.totalCount} scenarios resolved
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-border bg-muted/35 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Filter snapshot
-              </div>
-              <div className="mt-2 text-sm text-foreground">
-                {summarizeFilters(detail)}
-              </div>
+          <div className="rounded-xl border border-border bg-muted/35 p-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Progress
             </div>
-            <div className="rounded-xl border border-border bg-muted/35 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Next scenario
-              </div>
-              <div className="mt-2 text-sm text-foreground">
-                {detail.nextScenarioId
-                  ? (detail.items.find(
-                      (item) => item.scenarioId === detail.nextScenarioId
-                    )?.scenarioTitle ?? "Ready to continue")
-                  : "All scenarios resolved"}
-              </div>
+            <div className="mt-1 text-2xl font-semibold text-foreground">
+              {completionRate}%
             </div>
-            <div className="rounded-xl border border-border bg-muted/35 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Session status
-              </div>
-              <div className="mt-2 text-sm text-foreground">
-                {detail.status === "completed"
-                  ? "Progress is complete. Re-runs still update the latest local result."
-                  : "Select a scenario, run it, and keep moving down the session."}
-              </div>
+            <div className="text-xs text-muted-foreground">
+              {detail.status === "completed"
+                ? "Session complete"
+                : "Keep moving down the checklist"}
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-xl border border-border bg-muted/25 p-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm text-foreground">
-              Session tester or developer
+          <div className="rounded-xl border border-border bg-muted/35 p-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Next scenario
+            </div>
+            <div className="mt-1 text-sm text-foreground">
+              {detail.nextScenarioId
+                ? (detail.items.find(
+                    (item) => item.scenarioId === detail.nextScenarioId
+                  )?.scenarioTitle ?? "Ready to continue")
+                : "All scenarios resolved"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {summarizeFilters(detail)}
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-border bg-muted/25 p-3">
+            <label className="grid gap-1 text-sm text-foreground">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Session tester
+              </span>
               <input
                 className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 value={sessionTesterName}
@@ -228,8 +216,10 @@ export function ExecutionSessionPage() {
                 placeholder="Your name or email"
               />
             </label>
-            <label className="grid gap-2 text-sm text-foreground">
-              Session environment
+            <label className="grid gap-1 text-sm text-foreground">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Session environment
+              </span>
               <select
                 className="h-10 rounded-lg border border-input bg-background px-3 py-2 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 value={sessionEnvironment}
@@ -250,12 +240,12 @@ export function ExecutionSessionPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.9fr]">
-        <Card className="border-border/70 bg-card/90">
-          <CardHeader>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-start">
+        <Card className="border-border/70 bg-card/90 lg:sticky lg:top-4">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">Session checklist</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 lg:max-h-[calc(100vh-17rem)] lg:overflow-y-auto">
             <ExecutionSessionItemsList
               items={detail.items.map((item) => ({
                 scenarioId: item.scenarioId,
@@ -278,7 +268,7 @@ export function ExecutionSessionPage() {
         </Card>
 
         <Card className="border-border/70 bg-card/90">
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">Record result</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -296,102 +286,133 @@ export function ExecutionSessionPage() {
                   result.
                 </div>
               ) : (
-                <div className="grid gap-5">
-                  <section className="grid gap-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Scenario steps
-                    </div>
-                    {activeSteps.length > 0 ? (
-                      <ol className="grid gap-2">
-                        {activeSteps.map((step, index) => (
-                          <li
-                            key={`${activeItem.scenarioId}-step-${index + 1}`}
-                            className="rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm text-muted-foreground"
-                          >
-                            <span className="mr-2 font-semibold text-foreground">
-                              {step.keyword}
-                            </span>
-                            {step.text}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                        Steps are unavailable for this scenario. Open the
-                        feature detail page if you need to inspect the latest
-                        parsed spec.
+                <div className="grid gap-4 lg:h-[calc(100vh-17rem)] lg:grid-cols-[minmax(0,0.88fr)_minmax(320px,0.92fr)]">
+                  <section className="grid gap-3 lg:min-h-0">
+                    <div className="grid gap-2 rounded-xl border border-border bg-muted/20 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Current scenario
+                        </div>
+                        <StatusBadge
+                          status={
+                            activeItem.resolvedStatus ??
+                            activeItem.latestResult?.status ??
+                            "not-run"
+                          }
+                          compact
+                        />
                       </div>
-                    )}
+                      <div className="text-lg font-semibold text-foreground">
+                        {activeItem.scenarioTitle}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {activeItem.featureTitle}
+                      </div>
+                    </div>
+
+                    <section className="grid min-h-0 gap-3 rounded-xl border border-border bg-card/60 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Scenario steps
+                      </div>
+                      {activeSteps.length > 0 ? (
+                        <ol className="grid gap-2 lg:max-h-[calc(100vh-29rem)] lg:overflow-y-auto lg:pr-1">
+                          {activeSteps.map((step, index) => (
+                            <li
+                              key={`${activeItem.scenarioId}-step-${index + 1}`}
+                              className="rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm text-muted-foreground"
+                            >
+                              <span className="mr-2 font-semibold text-foreground">
+                                {step.keyword}
+                              </span>
+                              {step.text}
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                          Steps are unavailable for this scenario. Open the
+                          feature detail page if you need to inspect the latest
+                          parsed spec.
+                        </div>
+                      )}
+                    </section>
                   </section>
 
-                  <ScenarioExecutionPanel
-                    key={`${detail.id}-${activeItem.scenarioId}`}
-                    scenarioId={activeItem.scenarioId}
-                    scenarioTitle={activeItem.scenarioTitle}
-                    environments={activeItem.environments}
-                    fixedTesterName={sessionTesterName}
-                    fixedEnvironment={sessionEnvironment}
-                    showTesterNameField={false}
-                    showEnvironmentField={false}
-                    isSaving={saving}
-                    saveError={saveError}
-                    resetOnSubmit
-                    onSubmit={async (payload) => {
-                      try {
-                        setSaving(true);
-                        setSaveError(null);
-                        if (!sessionTesterName.trim()) {
-                          throw new Error(
-                            "Session tester or developer is required."
+                  <div className="lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+                    <ScenarioExecutionPanel
+                      key={`${detail.id}-${activeItem.scenarioId}`}
+                      scenarioId={activeItem.scenarioId}
+                      scenarioTitle={activeItem.scenarioTitle}
+                      environments={activeItem.environments}
+                      fixedTesterName={sessionTesterName}
+                      fixedEnvironment={sessionEnvironment}
+                      showTesterNameField={false}
+                      showEnvironmentField={false}
+                      compact
+                      isSaving={saving}
+                      saveError={saveError}
+                      resetOnSubmit
+                      onSubmit={async (payload) => {
+                        try {
+                          setSaving(true);
+                          setSaveError(null);
+                          if (!sessionTesterName.trim()) {
+                            throw new Error(
+                              "Session tester or developer is required."
+                            );
+                          }
+                          if (
+                            environmentOptions.length > 0 &&
+                            !sessionEnvironment
+                          ) {
+                            throw new Error("Session environment is required.");
+                          }
+                          if (
+                            sessionEnvironment &&
+                            !activeItem.environments.includes(
+                              sessionEnvironment
+                            )
+                          ) {
+                            throw new Error(
+                              "The selected session environment does not match this scenario."
+                            );
+                          }
+                          await saveSessionScenarioRun(
+                            detail.id,
+                            activeItem.scenarioId,
+                            payload
                           );
-                        }
-                        if (
-                          environmentOptions.length > 0 &&
-                          !sessionEnvironment
-                        ) {
-                          throw new Error("Session environment is required.");
-                        }
-                        if (
-                          sessionEnvironment &&
-                          !activeItem.environments.includes(sessionEnvironment)
-                        ) {
-                          throw new Error(
-                            "The selected session environment does not match this scenario."
+                          const nextDetail = await getExecutionSession(
+                            detail.id
                           );
+                          setDetail(nextDetail);
+                          if (
+                            detail.status !== "completed" &&
+                            nextDetail.status === "completed"
+                          ) {
+                            setCompletionDialogOpen(true);
+                          }
+                          setActiveScenarioId(
+                            nextDetail.nextScenarioId ??
+                              nextDetail.items.find(
+                                (item) =>
+                                  item.scenarioId === activeItem.scenarioId
+                              )?.scenarioId ??
+                              nextDetail.items[0]?.scenarioId ??
+                              null
+                          );
+                        } catch (submitError) {
+                          setSaveError(
+                            submitError instanceof Error
+                              ? submitError.message
+                              : "Failed to save run."
+                          );
+                        } finally {
+                          setSaving(false);
                         }
-                        await saveSessionScenarioRun(
-                          detail.id,
-                          activeItem.scenarioId,
-                          payload
-                        );
-                        const nextDetail = await getExecutionSession(detail.id);
-                        setDetail(nextDetail);
-                        if (
-                          detail.status !== "completed" &&
-                          nextDetail.status === "completed"
-                        ) {
-                          setCompletionDialogOpen(true);
-                        }
-                        setActiveScenarioId(
-                          nextDetail.nextScenarioId ??
-                            nextDetail.items.find(
-                              (item) =>
-                                item.scenarioId === activeItem.scenarioId
-                            )?.scenarioId ??
-                            nextDetail.items[0]?.scenarioId ??
-                            null
-                        );
-                      } catch (submitError) {
-                        setSaveError(
-                          submitError instanceof Error
-                            ? submitError.message
-                            : "Failed to save run."
-                        );
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                  />
+                      }}
+                    />
+                  </div>
                 </div>
               )
             ) : (

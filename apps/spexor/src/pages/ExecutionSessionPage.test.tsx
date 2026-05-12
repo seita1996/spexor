@@ -151,10 +151,9 @@ describe("ExecutionSessionPage", () => {
     expect(screen.getByText("0 / 2 scenarios resolved")).toBeInTheDocument();
     expect(screen.getByText("Session checklist")).toBeInTheDocument();
     expect(screen.getByText("Scenario steps")).toBeInTheDocument();
+    expect(screen.getByText("Current scenario")).toBeInTheDocument();
     expect(screen.getByText("the login page is open")).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Session tester or developer")
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Session tester")).toBeInTheDocument();
     expect(screen.getByLabelText("Session environment")).toBeInTheDocument();
     expect(
       screen.queryByLabelText("Tester or developer")
@@ -162,7 +161,7 @@ describe("ExecutionSessionPage", () => {
     expect(screen.queryByLabelText("Environment")).not.toBeInTheDocument();
 
     await userEvent.type(
-      screen.getByLabelText("Session tester or developer"),
+      screen.getByLabelText("Session tester"),
       "qa@example.com"
     );
     await userEvent.selectOptions(
@@ -389,7 +388,7 @@ describe("ExecutionSessionPage", () => {
 
     await screen.findByText("Feature session: Login");
     await userEvent.type(
-      screen.getByLabelText("Session tester or developer"),
+      screen.getByLabelText("Session tester"),
       "qa@example.com"
     );
     await userEvent.selectOptions(
