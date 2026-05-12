@@ -5,11 +5,15 @@ test.describe("Spexor core flow", () => {
     await page.goto("/");
 
     await page
-      .getByRole("link", { name: /Automated coverage display/i })
+      .getByRole("button", {
+        name: /Inspect linked automated checks from a feature/i
+      })
       .click();
 
     await expect(
-      page.getByRole("heading", { name: "Automated coverage display" })
+      page.getByRole("heading", {
+        name: "Inspect linked automated checks from a feature"
+      })
     ).toBeVisible();
     await expect(page.getByText("Automation linked")).toBeVisible();
     await expect(
@@ -29,37 +33,46 @@ test.describe("Spexor core flow", () => {
   }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /Manual history flow/i }).click();
-
-    await expect(
-      page.getByRole("heading", { name: "Manual history flow" })
-    ).toBeVisible();
-    await expect(page.getByText("Manual only")).toBeVisible();
-
     await page
-      .getByRole("button", { name: "Start session for this feature" })
+      .getByRole("button", {
+        name: /Review local and shared run history manually/i
+      })
       .click();
 
     await expect(
       page.getByRole("heading", {
-        name: /Feature session: Manual history flow/i
+        name: "Review local and shared run history manually"
       })
     ).toBeVisible();
-    await expect(page.getByText("Current scenario")).toBeVisible();
-    await page.getByLabel("Session tester").fill("qa@spexor.local");
-    await page.getByLabel("Session environment").selectOption("mac-chrome");
+    await expect(page.getByText("Manual only")).toBeVisible();
+
+    await page.getByRole("button", { name: "Start feature session" }).click();
+
+    await expect(page.getByText("Session Explorer")).toBeVisible();
+    await expect(
+      page
+        .getByLabel("Workspace breadcrumb")
+        .getByText(/Feature session: Manual history flow/i)
+    ).toBeVisible();
+    await expect(page.getByText("Session execution")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Back to workspace" })
+    ).toBeVisible();
+    await page.getByLabel("Tester or developer").fill("qa@spexor.local");
+    await page.getByLabel("Environment").last().selectOption("mac-chrome");
     await page.getByLabel("Notes").fill("Manual smoke coverage completed.");
     await page.getByRole("button", { name: "Save result" }).click();
 
     await expect(
-      page.getByRole("dialog", {
-        name: "All tests in this session are complete"
-      })
+      page.getByText("Manual smoke coverage completed.").first()
     ).toBeVisible();
-    await page.getByRole("button", { name: "Back to feature" }).click();
 
+    await page.getByRole("button", { name: "Back to workspace" }).click();
     await expect(
-      page.getByRole("heading", { name: "Manual history flow" })
+      page.getByRole("heading", { name: "Spec Explorer" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Manual execution" })
     ).toBeVisible();
   });
 });

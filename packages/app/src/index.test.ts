@@ -93,9 +93,9 @@ verification:
   manualOnly: false
   automated:
     - runner: vitest
-      file: apps/spexor/src/pages/ExecutionSessionPage.test.tsx
+      file: apps/spexor/src/pages/SpecWorkspacePage.test.tsx
       tests:
-        - "ExecutionSessionPage > loads a session and updates progress after saving a result"
+        - "SpecWorkspacePage > records a manual result for the selected scenario"
 ---
 
 Feature: User login
@@ -103,6 +103,10 @@ Feature: User login
   Scenario: Login with valid credentials
     Given I open the login page
     Then I should see the dashboard
+
+  Scenario: Login with invalid credentials
+    Given I open the login page
+    Then I should see an authentication error
 `,
       "utf8"
     );
@@ -116,9 +120,19 @@ Feature: User login
     const firstFeature = list[0];
     expect(firstFeature).toBeDefined();
     const detail = await app.getFeatureDetail(firstFeature?.featureId ?? "");
-    expect(detail?.scenarioGroups).toHaveLength(1);
+    expect(detail?.scenarioGroups).toHaveLength(2);
     expect(detail?.verification.manualOnly).toBe(false);
     expect(detail?.verification.automated[0]?.runner).toBe("vitest");
+
+    const catalog = await app.getSpecCatalog();
+    expect(catalog.items).toHaveLength(1);
+    expect(catalog.features[0]?.featureId).toBe(firstFeature?.featureId);
+    expect(catalog.features[0]?.scenarioGroups[0]?.cases[0]?.title).toBe(
+      "Login with valid credentials"
+    );
+    expect(catalog.features[0]?.scenarioGroups[1]?.cases[0]?.title).toBe(
+      "Login with invalid credentials"
+    );
 
     const firstGroup = detail?.scenarioGroups[0];
     expect(firstGroup).toBeDefined();
@@ -148,7 +162,8 @@ Feature: User login
         tag: "auth",
         environment: "mac-chrome",
         priority: "high"
-      }
+      },
+      scenarioIds: [scenarioId]
     });
     expect(session.totalCount).toBe(1);
     expect(session.items[0]?.scenarioId).toBe(scenarioId);

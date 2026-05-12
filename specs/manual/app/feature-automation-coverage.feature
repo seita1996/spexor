@@ -11,10 +11,10 @@ verification:
   manualOnly: false
   automated:
     - runner: vitest
-      file: apps/spexor/src/pages/FeatureDetailPage.test.tsx
+      file: apps/spexor/src/pages/SpecWorkspacePage.test.tsx
       tests:
-        - "FeatureDetailPage > opens scenario history in a dialog"
-        - "FeatureDetailPage > starts an execution session for the full feature"
+        - "SpecWorkspacePage > shows a searchable spec explorer and selected scenario workspace"
+        - "SpecWorkspacePage > records a manual result for the selected scenario"
     - runner: playwright
       file: packages/e2e-test/tests/core-flow.spec.ts
       tests:
