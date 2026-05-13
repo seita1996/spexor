@@ -22,9 +22,9 @@ verification:
   manualOnly: false
   automated:
     - runner: vitest
-      file: apps/spexor/src/pages/ExecutionSessionPage.test.tsx
+      file: apps/spexor/src/pages/SpecWorkspacePage.test.tsx
       tests:
-        - "ExecutionSessionPage > loads a session and updates progress after saving a result"
+        - "SpecWorkspacePage > uses the workspace for execution session routes"
 ---
 ```
 

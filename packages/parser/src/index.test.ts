@@ -1,4 +1,5 @@
 import path from "node:path";
+import { expandFeatureCases } from "@spexor/domain";
 import { parseSpecText } from "./index";
 
 describe("@spexor/parser", () => {
@@ -18,9 +19,9 @@ verification:
   manualOnly: false
   automated:
     - runner: vitest
-      file: apps/spexor/src/pages/FeatureDetailPage.test.tsx
+      file: apps/spexor/src/pages/SpecWorkspacePage.test.tsx
       tests:
-        - "FeatureDetailPage > starts an execution session for the full feature"
+        - "SpecWorkspacePage > shows a searchable spec explorer and selected scenario workspace"
 ---
 
 Feature: User login
@@ -48,9 +49,9 @@ Feature: User login
     expect(parsed.feature?.metadata.verification.automated).toEqual([
       {
         runner: "vitest",
-        file: "apps/spexor/src/pages/FeatureDetailPage.test.tsx",
+        file: "apps/spexor/src/pages/SpecWorkspacePage.test.tsx",
         tests: [
-          "FeatureDetailPage > starts an execution session for the full feature"
+          "SpecWorkspacePage > shows a searchable spec explorer and selected scenario workspace"
         ]
       }
     ]);
@@ -97,6 +98,37 @@ Feature: Broken metadata
       manualOnly: true,
       automated: []
     });
+  });
+
+  it("keeps scenario ids aligned with expanded cases for multiple scenario titles", () => {
+    const parsed = parseSpecText(
+      `Feature: Execution session
+
+  Scenario: Resolve a feature session end-to-end
+    Given I start a feature session
+    Then I should see it complete
+
+  Scenario: Return to the feature after completion
+    Given all cases are resolved
+    Then I should navigate back to the feature
+`,
+      filePath,
+      { rootDir }
+    );
+
+    expect(parsed.feature?.scenarios).toHaveLength(2);
+    expect(parsed.feature ? expandFeatureCases(parsed.feature) : []).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          scenarioId: parsed.feature?.scenarios[0]?.id,
+          title: "Resolve a feature session end-to-end"
+        }),
+        expect.objectContaining({
+          scenarioId: parsed.feature?.scenarios[1]?.id,
+          title: "Return to the feature after completion"
+        })
+      ])
+    );
   });
 
   it("surfaces invalid Gherkin without crashing", () => {
