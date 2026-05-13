@@ -40,6 +40,11 @@ export interface SpecsListItemDto {
   statusSummary: StatusSummary;
 }
 
+export interface SpecCatalogDto {
+  items: SpecsListItemDto[];
+  features: FeatureDetailDto[];
+}
+
 export interface ScenarioCaseDto extends ScenarioCaseSpec {
   sourceLine?: number | null;
   latestResult: LatestScenarioResult | null;
@@ -190,6 +195,7 @@ export interface SpexorApp {
   config: ResolvedSpexorConfig;
   syncSpecsFromFilesystem(): Promise<{ processedCount: number }>;
   getSpecsList(): Promise<SpecsListItemDto[]>;
+  getSpecCatalog(): Promise<SpecCatalogDto>;
   getFeatureDetail(featureId: string): Promise<FeatureDetailDto | null>;
   getScenarioHistory(scenarioId: string): Promise<ScenarioHistoryDto | null>;
   exportRunResultsNdjson(): Promise<RunResultsExportDto>;
@@ -445,129 +451,146 @@ export async function createSpexorApp(
       };
     };
 
+  const getFeatureDetail = async (
+    featureId: string
+  ): Promise<FeatureDetailDto | null> => {
+    const specFile = database.getSpecFile(featureId);
+    if (!specFile) {
+      return null;
+    }
+
+    const feature = database.getFeature(featureId);
+    if (!feature) {
+      return {
+        featureId,
+        title: specFile.displayTitle,
+        filePath: specFile.relativePath,
+        parseHealth: specFile.parseHealth as ParseHealth,
+        issueCount: specFile.issueCount,
+        issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
+        metadata: emptyMetadata(),
+        verification: defaultVerification(),
+        environmentStatuses: [],
+        description: "",
+        background: [],
+        scenarioGroups: []
+      };
+    }
+
+    const latestResultMap = new Map(
+      database
+        .getFeatureLatestResults(featureId)
+        .map((result) => [result.scenarioKey, result] as const)
+    );
+    const metadata = parseJson<FeatureMetadata>(
+      feature.metadataJson,
+      emptyMetadata()
+    );
+    const soleEnvironment =
+      metadata.environments.length === 1 ? metadata.environments[0] : null;
+    const latestEnvironmentResults = [
+      ...database.getFeatureLatestResultsByEnvironment(featureId),
+      ...[...latestResultMap.values()]
+        .filter((result) => !result.environment && soleEnvironment)
+        .map((result) => ({
+          ...result,
+          environment: soleEnvironment ?? undefined
+        }))
+    ];
+
+    const groupedScenarios = new Map<string, ScenarioGroupDto>();
+    const scenarios = database.getFeatureScenarios(featureId);
+
+    for (const scenario of scenarios) {
+      const group = groupedScenarios.get(scenario.groupKey) ?? {
+        id: scenario.groupKey,
+        title: scenario.groupTitle,
+        description: scenario.description,
+        kind: scenario.groupKind,
+        aggregateStatus: null,
+        cases: []
+      };
+
+      const latestResult = latestResultMap.get(scenario.scenarioKey) ?? null;
+      group.cases.push({
+        id: scenario.scenarioKey,
+        scenarioId: scenario.groupKey,
+        title: scenario.title,
+        description: scenario.description,
+        kind: scenario.kind,
+        tags: parseJson<string[]>(scenario.tagsJson, []),
+        steps: parseJson<StepSpec[]>(scenario.stepsJson, []),
+        outlineTitle: scenario.outlineTitle ?? undefined,
+        exampleName: scenario.exampleName ?? undefined,
+        exampleIndex: scenario.exampleIndex ?? undefined,
+        exampleValues: parseJson<Record<string, string> | undefined>(
+          scenario.exampleValuesJson,
+          undefined
+        ),
+        location: scenario.sourceLine
+          ? { line: scenario.sourceLine }
+          : undefined,
+        sourceLine: scenario.sourceLine,
+        latestResult
+      });
+      groupedScenarios.set(scenario.groupKey, group);
+    }
+
+    const scenarioGroups = [...groupedScenarios.values()].map((group) => ({
+      ...group,
+      aggregateStatus: summarizeLatestStatuses(
+        group.cases.flatMap((scenario) =>
+          scenario.latestResult ? [scenario.latestResult] : []
+        )
+      ).aggregate
+    }));
+
+    return {
+      featureId,
+      title: feature.displayTitle,
+      featureTitle: feature.featureTitle,
+      filePath: feature.specRelativePath,
+      parseHealth: feature.parseHealth as ParseHealth,
+      issueCount: feature.issueCount,
+      issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
+      metadata,
+      verification: metadata.verification,
+      environmentStatuses: metadata.environments.map((environment) => ({
+        environment,
+        aggregateStatus: summarizeLatestStatuses(
+          latestEnvironmentResults.filter(
+            (result) => result.environment === environment
+          )
+        ).aggregate,
+        latestResult:
+          latestEnvironmentResults.find(
+            (result) => result.environment === environment
+          ) ?? null
+      })),
+      description: feature.description,
+      background: parseJson<StepSpec[]>(feature.backgroundJson, []),
+      scenarioGroups
+    };
+  };
+
   return {
     config,
     syncSpecsFromFilesystem,
     getSpecsList,
-    async getFeatureDetail(featureId) {
-      const specFile = database.getSpecFile(featureId);
-      if (!specFile) {
-        return null;
-      }
-
-      const feature = database.getFeature(featureId);
-      if (!feature) {
-        return {
-          featureId,
-          title: specFile.displayTitle,
-          filePath: specFile.relativePath,
-          parseHealth: specFile.parseHealth as ParseHealth,
-          issueCount: specFile.issueCount,
-          issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
-          metadata: emptyMetadata(),
-          verification: defaultVerification(),
-          environmentStatuses: [],
-          description: "",
-          background: [],
-          scenarioGroups: []
-        };
-      }
-
-      const latestResultMap = new Map(
-        database
-          .getFeatureLatestResults(featureId)
-          .map((result) => [result.scenarioKey, result] as const)
+    async getSpecCatalog() {
+      const items = await getSpecsList();
+      const features = await Promise.all(
+        items.map((item) => getFeatureDetail(item.featureId))
       );
-      const metadata = parseJson<FeatureMetadata>(
-        feature.metadataJson,
-        emptyMetadata()
-      );
-      const soleEnvironment =
-        metadata.environments.length === 1 ? metadata.environments[0] : null;
-      const latestEnvironmentResults = [
-        ...database.getFeatureLatestResultsByEnvironment(featureId),
-        ...[...latestResultMap.values()]
-          .filter((result) => !result.environment && soleEnvironment)
-          .map((result) => ({
-            ...result,
-            environment: soleEnvironment ?? undefined
-          }))
-      ];
-
-      const groupedScenarios = new Map<string, ScenarioGroupDto>();
-      const scenarios = database.getFeatureScenarios(featureId);
-
-      for (const scenario of scenarios) {
-        const group = groupedScenarios.get(scenario.groupKey) ?? {
-          id: scenario.groupKey,
-          title: scenario.groupTitle,
-          description: scenario.description,
-          kind: scenario.groupKind,
-          aggregateStatus: null,
-          cases: []
-        };
-
-        const latestResult = latestResultMap.get(scenario.scenarioKey) ?? null;
-        group.cases.push({
-          id: scenario.scenarioKey,
-          scenarioId: scenario.groupKey,
-          title: scenario.title,
-          description: scenario.description,
-          kind: scenario.kind,
-          tags: parseJson<string[]>(scenario.tagsJson, []),
-          steps: parseJson<StepSpec[]>(scenario.stepsJson, []),
-          outlineTitle: scenario.outlineTitle ?? undefined,
-          exampleName: scenario.exampleName ?? undefined,
-          exampleIndex: scenario.exampleIndex ?? undefined,
-          exampleValues: parseJson<Record<string, string> | undefined>(
-            scenario.exampleValuesJson,
-            undefined
-          ),
-          location: scenario.sourceLine
-            ? { line: scenario.sourceLine }
-            : undefined,
-          sourceLine: scenario.sourceLine,
-          latestResult
-        });
-        groupedScenarios.set(scenario.groupKey, group);
-      }
-
-      const scenarioGroups = [...groupedScenarios.values()].map((group) => ({
-        ...group,
-        aggregateStatus: summarizeLatestStatuses(
-          group.cases.flatMap((scenario) =>
-            scenario.latestResult ? [scenario.latestResult] : []
-          )
-        ).aggregate
-      }));
 
       return {
-        featureId,
-        title: feature.displayTitle,
-        featureTitle: feature.featureTitle,
-        filePath: feature.specRelativePath,
-        parseHealth: feature.parseHealth as ParseHealth,
-        issueCount: feature.issueCount,
-        issues: parseJson<ParseIssue[]>(specFile.issuesJson, []),
-        metadata,
-        verification: metadata.verification,
-        environmentStatuses: metadata.environments.map((environment) => ({
-          environment,
-          aggregateStatus: summarizeLatestStatuses(
-            latestEnvironmentResults.filter(
-              (result) => result.environment === environment
-            )
-          ).aggregate,
-          latestResult:
-            latestEnvironmentResults.find(
-              (result) => result.environment === environment
-            ) ?? null
-        })),
-        description: feature.description,
-        background: parseJson<StepSpec[]>(feature.backgroundJson, []),
-        scenarioGroups
+        items,
+        features: features.filter(
+          (feature): feature is FeatureDetailDto => feature !== null
+        )
       };
     },
+    getFeatureDetail,
     async getScenarioHistory(scenarioId) {
       const scenario = database.getScenario(scenarioId);
       if (!scenario) {

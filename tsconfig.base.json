@@ -22,7 +22,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "baseUrl": "."
+    "jsx": "react-jsx"
   }
 }

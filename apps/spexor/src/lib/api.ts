@@ -8,6 +8,7 @@ import type {
   ScenarioHistoryDto,
   SharedSyncResultDto,
   SharedSyncStatusDto,
+  SpecCatalogDto,
   SpecsListItemDto
 } from "@spexor/app";
 
@@ -35,6 +36,25 @@ async function fetchJson<T>(
 
 export function getSpecs() {
   return fetchJson<SpecsListItemDto[]>("/api/specs");
+}
+
+export function getSpecCatalog() {
+  return fetchJson<SpecCatalogDto>("/api/catalog").catch(async (error) => {
+    if (
+      error instanceof Error &&
+      /route not found|request failed with 404/i.test(error.message)
+    ) {
+      const items = await getSpecs();
+      return {
+        items,
+        features: await Promise.all(
+          items.map((item) => getFeature(item.featureId))
+        )
+      };
+    }
+
+    throw error;
+  });
 }
 
 export function syncSpecs() {

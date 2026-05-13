@@ -139,4 +139,29 @@ describe("ScenarioExecutionPanel", () => {
       })
     );
   });
+
+  it("renders a compact session-friendly layout when requested", () => {
+    render(
+      <ScenarioExecutionPanel
+        scenarioId="spec::login::1"
+        scenarioTitle="Login with valid credentials"
+        environments={["mac-chrome"]}
+        fixedTesterName="qa@example.com"
+        fixedEnvironment="mac-chrome"
+        showTesterNameField={false}
+        showEnvironmentField={false}
+        compact
+        isSaving={false}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    expect(
+      screen.getByText("Save the current result without leaving this session.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save result" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Evidence references")).toBeInTheDocument();
+  });
 });

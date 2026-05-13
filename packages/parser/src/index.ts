@@ -21,6 +21,7 @@ import {
   type ScenarioExamples,
   type ScenarioSpec,
   type SourceLocation,
+  slugify,
   type StepSpec
 } from "@spexor/domain";
 import matter from "gray-matter";
@@ -409,13 +410,22 @@ function buildFeatureSpec(
     )
     .at(0);
 
+  const scenarioOccurrenceMap = new Map<string, number>();
   const scenarios = featureNode.children
     .flatMap((child) =>
       "scenario" in child && child.scenario ? [child.scenario] : []
     )
-    .map((scenarioNode, index) =>
-      buildScenarioSpec(relativePath, scenarioNode.name, index, scenarioNode)
-    );
+    .map((scenarioNode) => {
+      const normalizedTitle = slugify(scenarioNode.name);
+      const occurrence = (scenarioOccurrenceMap.get(normalizedTitle) ?? 0) + 1;
+      scenarioOccurrenceMap.set(normalizedTitle, occurrence);
+      return buildScenarioSpec(
+        relativePath,
+        scenarioNode.name,
+        occurrence,
+        scenarioNode
+      );
+    });
 
   return {
     id: relativePath,
@@ -433,7 +443,7 @@ function buildFeatureSpec(
 function buildScenarioSpec(
   relativePath: string,
   title: string,
-  index: number,
+  occurrenceIndex: number,
   scenarioNode: {
     description: string;
     examples: ReadonlyArray<{
@@ -456,7 +466,6 @@ function buildScenarioSpec(
     tags: ReadonlyArray<{ name: string }>;
   }
 ): ScenarioSpec {
-  const occurrenceIndex = index + 1;
   const kind =
     scenarioNode.keyword.toLowerCase().includes("outline") ||
     scenarioNode.examples.length > 0

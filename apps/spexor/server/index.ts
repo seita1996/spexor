@@ -32,6 +32,11 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, items);
     }
 
+    if (request.method === "GET" && pathname === "/api/catalog") {
+      const catalog = await spexor.getSpecCatalog();
+      return writeJson(response, 200, catalog);
+    }
+
     if (request.method === "GET" && pathname === "/api/sessions") {
       const items = await spexor.getExecutionSessions();
       return writeJson(response, 200, items);

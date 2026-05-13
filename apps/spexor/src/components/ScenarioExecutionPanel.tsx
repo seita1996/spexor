@@ -42,6 +42,7 @@ export function ScenarioExecutionPanel(props: {
   fixedEnvironment?: string | undefined;
   showTesterNameField?: boolean;
   showEnvironmentField?: boolean;
+  compact?: boolean;
   isSaving: boolean;
   saveError?: string | null;
   resetOnSubmit?: boolean;
@@ -68,6 +69,7 @@ export function ScenarioExecutionPanel(props: {
   const testerNameInputId = `${props.scenarioId}-tester-name`;
   const environmentInputId = `${props.scenarioId}-environment`;
   const notesInputId = `${props.scenarioId}-notes`;
+  const compact = props.compact ?? false;
 
   useEffect(() => {
     setTesterName(
@@ -112,18 +114,32 @@ export function ScenarioExecutionPanel(props: {
         }
       }}
     >
-      <Card className="border-border/70 bg-card/80 shadow-none">
-        <CardHeader className="p-0">
-          <div className="flex items-center gap-3">
-            <StatusBadge status={status} />
-            <CardTitle className="text-lg">{props.scenarioTitle}</CardTitle>
+      {compact ? (
+        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/70 px-3 py-2">
+          <StatusBadge status={status} compact />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-foreground">
+              {props.scenarioTitle}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Save the current result without leaving this session.
+            </div>
           </div>
-          <CardDescription className="leading-6">
-            Save the result for the scenario you just tested. Spexor stores the
-            run in SQLite and leaves the `.feature` file untouched.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+        </div>
+      ) : (
+        <Card className="border-border/70 bg-card/80 shadow-none">
+          <CardHeader className="p-0">
+            <div className="flex items-center gap-3">
+              <StatusBadge status={status} />
+              <CardTitle className="text-lg">{props.scenarioTitle}</CardTitle>
+            </div>
+            <CardDescription className="leading-6">
+              Save the result for the scenario you just tested. Spexor stores
+              the run in SQLite and leaves the `.feature` file untouched.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       {(props.showTesterNameField ?? true) ? (
         <label
@@ -161,11 +177,19 @@ export function ScenarioExecutionPanel(props: {
         </label>
       ) : null}
 
-      <fieldset className="grid gap-2 rounded-xl border border-border bg-card/80 p-4">
+      <fieldset
+        className={`grid gap-2 rounded-xl border border-border bg-card/80 ${
+          compact ? "p-3" : "p-4"
+        }`}
+      >
         <legend className="px-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Status
         </legend>
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className={`grid gap-2 ${
+            compact ? "grid-cols-2 xl:grid-cols-4" : "grid-cols-2"
+          }`}
+        >
           {statusOptions.map((option) => (
             <Button
               key={option}
@@ -189,93 +213,99 @@ export function ScenarioExecutionPanel(props: {
           id={notesInputId}
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
-          className="min-h-32"
+          className={compact ? "min-h-24" : "min-h-32"}
           placeholder="Observed behavior, setup notes, or blockers"
         />
       </label>
 
-      <Card className="border-border bg-card/80 shadow-none">
-        <CardContent className="grid gap-3 p-4">
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">
-                Evidence references
-              </h4>
+      <details className="rounded-xl border border-border bg-card/80">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
+          <span>Evidence references</span>
+          <span className="text-xs font-normal uppercase tracking-[0.16em] text-muted-foreground">
+            Optional
+          </span>
+        </summary>
+        <Card className="border-0 bg-transparent shadow-none">
+          <CardContent className="grid gap-3 px-4 pb-4 pt-0">
+            <header className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
                 Keep links to screenshots, logs, or local files that support
                 this result.
               </p>
-            </div>
-            <Button
-              type="button"
-              onClick={() =>
-                setAttachments((current) => [...current, createEvidenceDraft()])
-              }
-              variant="outline"
-              size="sm"
-              className="uppercase tracking-[0.16em]"
-            >
-              Add ref
-            </Button>
-          </header>
-
-          {attachments.map((attachment, index) => (
-            <div
-              key={attachment.id}
-              className="grid gap-2 md:grid-cols-[120px_1fr_1fr]"
-            >
-              <Select
-                value={attachment.kind}
-                onChange={(event) =>
-                  setAttachments((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? {
-                            ...item,
-                            kind: event.target.value as EvidenceDraft["kind"]
-                          }
-                        : item
-                    )
-                  )
+              <Button
+                type="button"
+                onClick={() =>
+                  setAttachments((current) => [
+                    ...current,
+                    createEvidenceDraft()
+                  ])
                 }
+                variant="outline"
+                size="sm"
+                className="uppercase tracking-[0.16em]"
               >
-                <option value="file">file</option>
-                <option value="url">url</option>
-              </Select>
-              <Input
-                value={attachment.value}
-                onChange={(event) =>
-                  setAttachments((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? { ...item, value: event.target.value }
-                        : item
+                Add ref
+              </Button>
+            </header>
+
+            {attachments.map((attachment, index) => (
+              <div
+                key={attachment.id}
+                className="grid gap-2 md:grid-cols-[120px_1fr_1fr]"
+              >
+                <Select
+                  value={attachment.kind}
+                  onChange={(event) =>
+                    setAttachments((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              kind: event.target.value as EvidenceDraft["kind"]
+                            }
+                          : item
+                      )
                     )
-                  )
-                }
-                placeholder={
-                  attachment.kind === "file"
-                    ? "/tmp/screenshot.png"
-                    : "https://example.com/log"
-                }
-              />
-              <Input
-                value={attachment.label}
-                onChange={(event) =>
-                  setAttachments((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? { ...item, label: event.target.value }
-                        : item
+                  }
+                >
+                  <option value="file">file</option>
+                  <option value="url">url</option>
+                </Select>
+                <Input
+                  value={attachment.value}
+                  onChange={(event) =>
+                    setAttachments((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, value: event.target.value }
+                          : item
+                      )
                     )
-                  )
-                }
-                placeholder="Optional label"
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                  }
+                  placeholder={
+                    attachment.kind === "file"
+                      ? "/tmp/screenshot.png"
+                      : "https://example.com/log"
+                  }
+                />
+                <Input
+                  value={attachment.label}
+                  onChange={(event) =>
+                    setAttachments((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, label: event.target.value }
+                          : item
+                      )
+                    )
+                  }
+                  placeholder="Optional label"
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </details>
 
       {props.saveError ? (
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
@@ -286,7 +316,7 @@ export function ScenarioExecutionPanel(props: {
       <Button
         type="submit"
         disabled={props.isSaving}
-        className="uppercase tracking-[0.18em]"
+        className={`uppercase tracking-[0.18em] ${compact ? "h-11" : ""}`}
       >
         {props.isSaving ? "Saving..." : "Save result"}
       </Button>

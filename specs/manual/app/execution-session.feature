@@ -11,10 +11,10 @@ verification:
   manualOnly: false
   automated:
     - runner: vitest
-      file: apps/spexor/src/pages/ExecutionSessionPage.test.tsx
+      file: apps/spexor/src/pages/SpecWorkspacePage.test.tsx
       tests:
-        - "ExecutionSessionPage > loads a session and updates progress after saving a result"
-        - "ExecutionSessionPage > shows a completion dialog and feature return link when the last test is saved"
+        - "SpecWorkspacePage > uses the workspace for execution session routes"
+        - "SpecWorkspacePage > records a manual result for the selected scenario"
     - runner: playwright
       file: packages/e2e-test/tests/core-flow.spec.ts
       tests:
