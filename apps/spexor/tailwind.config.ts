@@ -10,7 +10,7 @@ const monorepoUiPath = path.resolve(webRoot, "../../packages/ui/src");
 const installedUiPackage = resolvePackageSource("@spexor/ui");
 
 export default {
-  darkMode: ["class"],
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
