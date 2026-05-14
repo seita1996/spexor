@@ -176,8 +176,8 @@ importers:
   packages/parser:
     dependencies:
       '@cucumber/gherkin':
-        specifier: ^39.0.0
-        version: 39.0.0
+        specifier: ^39.1.0
+        version: 39.1.0
       '@cucumber/messages':
         specifier: ^32.2.0
         version: 32.2.0
@@ -565,8 +565,8 @@ packages:
     resolution: {integrity: sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA==}
     engines: {node: '>=20.19.0'}
 
-  '@cucumber/gherkin@39.0.0':
-    resolution: {integrity: sha512-6tCR0ZIF0tVkd2iBqA3IcYUovwdpJM6oorACisgIdDJMsKufOq962qk9jncRUi5Bja1kEAAEKpxcRtvnp9k/dg==}
+  '@cucumber/gherkin@39.1.0':
+    resolution: {integrity: sha512-pqmSO2bUWxJm3TbNrKXlDaHjL6c77+ez9kWmfCd9oRPeTRPEVH3spZvpAqdXYWOZYSNYwWFCAAeZ4RGpkauNoQ==}
 
   '@cucumber/messages@32.2.0':
     resolution: {integrity: sha512-oYp1dgL2TByYWL51Z+rNm+/mFtJhiPU9WS03goes9EALb8d9GFcXRbG1JluFLFaChF1YDqIzLac0kkC3tv1DjQ==}
@@ -3223,7 +3223,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.0': {}
 
-  '@cucumber/gherkin@39.0.0':
+  '@cucumber/gherkin@39.1.0':
     dependencies:
       '@cucumber/messages': 32.2.0
 
