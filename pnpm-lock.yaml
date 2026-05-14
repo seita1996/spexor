@@ -179,8 +179,8 @@ importers:
         specifier: ^39.1.0
         version: 39.1.0
       '@cucumber/messages':
-        specifier: ^32.2.0
-        version: 32.2.0
+        specifier: ^32.3.1
+        version: 32.3.1
       '@spexor/domain':
         specifier: workspace:*
         version: link:../domain
@@ -568,8 +568,8 @@ packages:
   '@cucumber/gherkin@39.1.0':
     resolution: {integrity: sha512-pqmSO2bUWxJm3TbNrKXlDaHjL6c77+ez9kWmfCd9oRPeTRPEVH3spZvpAqdXYWOZYSNYwWFCAAeZ4RGpkauNoQ==}
 
-  '@cucumber/messages@32.2.0':
-    resolution: {integrity: sha512-oYp1dgL2TByYWL51Z+rNm+/mFtJhiPU9WS03goes9EALb8d9GFcXRbG1JluFLFaChF1YDqIzLac0kkC3tv1DjQ==}
+  '@cucumber/messages@32.3.1':
+    resolution: {integrity: sha512-yNQq1KoXRYaEKrWMFmpUQX7TdeQuU9jeGgJAZ3dArTsC/T4NpJ6DnqaJIIgwPnz/wtQIQTNX7/h0rOuF5xY4qQ==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -3225,9 +3225,9 @@ snapshots:
 
   '@cucumber/gherkin@39.1.0':
     dependencies:
-      '@cucumber/messages': 32.2.0
+      '@cucumber/messages': 32.3.1
 
-  '@cucumber/messages@32.2.0':
+  '@cucumber/messages@32.3.1':
     dependencies:
       class-transformer: 0.5.1
       reflect-metadata: 0.2.2
