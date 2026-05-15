@@ -1,5 +1,6 @@
 import type {
   ExecutionSessionDetailDto,
+  RecordScenarioResultInput,
   FeatureDetailDto,
   LatestScenarioResult,
   RunStatus,
@@ -18,7 +19,19 @@ import { ScenarioExecutionPanel } from "../components/ScenarioExecutionPanel";
 import { ThemeToggle } from "../components/theme-toggle";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { Select } from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
 import {
   createExecutionSession,
   getExecutionSession,
@@ -76,6 +89,32 @@ interface CheckpointRecord {
   changes: string;
   verification: string;
   remaining: string;
+}
+
+interface EvidenceDraft {
+  id: string;
+  kind: "file" | "url";
+  value: string;
+  label: string;
+}
+
+const runStatusOptions: RunStatus[] = [
+  "passed",
+  "failed",
+  "blocked",
+  "skipped"
+];
+const testerNameStorageKey = "spexor.testerName";
+let sessionEvidenceDraftCount = 0;
+
+function createSessionEvidenceDraft(): EvidenceDraft {
+  sessionEvidenceDraftCount += 1;
+  return {
+    id: `session-evidence-${sessionEvidenceDraftCount}`,
+    kind: "file",
+    value: "",
+    label: ""
+  };
 }
 
 const checkpointRecords: CheckpointRecord[] = [
@@ -508,6 +547,51 @@ export function SpecWorkspacePage() {
               selectedFeature ? `/features/${selectedFeature.id}` : "/"
             );
           }}
+          onSaveSessionScenario={async (scenarioId, payload) => {
+            if (!executionSession) {
+              return;
+            }
+            const sessionItem = executionSession.items.find(
+              (item) => item.scenarioId === scenarioId
+            );
+            try {
+              setSaving(true);
+              setSaveError(null);
+              await saveSessionScenarioRun(
+                executionSession.id,
+                scenarioId,
+                payload
+              );
+              const nextSession = await getExecutionSession(
+                executionSession.id
+              );
+              setExecutionSession(
+                nextSession.resolvedCount > executionSession.resolvedCount
+                  ? nextSession
+                  : resolveSessionScenario(
+                      executionSession,
+                      scenarioId,
+                      payload.status
+                    )
+              );
+              if (sessionItem) {
+                await reloadFeature(sessionItem.featureId);
+              }
+              if (selectedScenario?.id === scenarioId) {
+                const nextHistory = await getScenarioHistory(scenarioId);
+                setHistory(nextHistory);
+              }
+            } catch (submitError) {
+              setSaveError(
+                submitError instanceof Error
+                  ? submitError.message
+                  : "Failed to save run."
+              );
+              throw submitError;
+            } finally {
+              setSaving(false);
+            }
+          }}
           onSave={async (payload) => {
             if (!selectedScenario) {
               return;
@@ -914,6 +998,10 @@ function ScenarioWorkspace(props: {
   onStartFeatureSession: () => Promise<void>;
   onSelectScenario: (scenarioId: string) => void;
   onExitSession: () => void;
+  onSaveSessionScenario: (
+    scenarioId: string,
+    input: RecordScenarioResultInput
+  ) => Promise<void>;
   onSave: Parameters<typeof ScenarioExecutionPanel>[0]["onSubmit"];
 }) {
   if (props.loading && !props.scenario) {
@@ -1105,21 +1193,25 @@ function ScenarioWorkspace(props: {
           </section>
         ) : null}
 
-        <section className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="grid gap-1">
-              <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                {props.executionSession
-                  ? "Session execution"
-                  : "Manual execution"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {props.executionSession
-                  ? "Record this scenario against the active execution session."
-                  : "Record the current result. Spexor stores the run in SQLite and leaves the `.feature` file unchanged."}
-              </p>
-            </div>
-            {!props.executionSession ? (
+        {props.executionSession ? (
+          <SessionExecutionGrid
+            session={props.executionSession}
+            isSaving={props.saving}
+            saveError={props.saveError}
+            onSaveScenario={props.onSaveSessionScenario}
+          />
+        ) : (
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="grid gap-1">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                  Manual execution
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Record the current result. Spexor stores the run in SQLite and
+                  leaves the `.feature` file unchanged.
+                </p>
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -1131,22 +1223,452 @@ function ScenarioWorkspace(props: {
                   ? "Starting..."
                   : "Start feature session"}
               </Button>
-            ) : null}
-          </div>
-          <ScenarioExecutionPanel
-            key={props.scenario.id}
-            scenarioId={props.scenario.id}
-            scenarioTitle={props.scenario.title}
-            environments={environments}
-            compact
-            isSaving={props.saving}
-            saveError={props.saveError}
-            resetOnSubmit
-            onSubmit={props.onSave}
-          />
-        </section>
+            </div>
+            <ScenarioExecutionPanel
+              key={props.scenario.id}
+              scenarioId={props.scenario.id}
+              scenarioTitle={props.scenario.title}
+              environments={environments}
+              compact
+              isSaving={props.saving}
+              saveError={props.saveError}
+              resetOnSubmit
+              onSubmit={props.onSave}
+            />
+          </section>
+        )}
       </div>
     </section>
+  );
+}
+
+function SessionExecutionGrid(props: {
+  session: ExecutionSessionDetailDto;
+  isSaving: boolean;
+  saveError: string | null;
+  onSaveScenario: (
+    scenarioId: string,
+    input: RecordScenarioResultInput
+  ) => Promise<void>;
+}) {
+  const environments = useMemo(
+    () =>
+      Array.from(
+        new Set(props.session.items.flatMap((item) => item.environments))
+      ),
+    [props.session.items]
+  );
+  const [testerName, setTesterName] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return window.localStorage.getItem(testerNameStorageKey) ?? "";
+  });
+  const [environment, setEnvironment] = useState(
+    props.session.filters.environment || environments[0] || ""
+  );
+
+  useEffect(() => {
+    setEnvironment(
+      (current) =>
+        current || props.session.filters.environment || environments[0] || ""
+    );
+  }, [environments, props.session.filters.environment]);
+
+  return (
+    <section className="grid gap-4 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+            Session execution
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Record each scenario directly from the active execution session.
+            Rows stay neutral until they are saved.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[minmax(180px,240px)_minmax(160px,220px)]">
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            Tester or developer
+            <Input
+              required
+              value={testerName}
+              onChange={(event) => setTesterName(event.target.value)}
+              placeholder="Your name or email"
+            />
+          </label>
+          {environments.length > 0 ? (
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Environment
+              <Select
+                value={environment}
+                onChange={(event) => setEnvironment(event.target.value)}
+              >
+                {environments.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
+          <thead className="bg-muted/60 text-xs font-semibold uppercase text-muted-foreground">
+            <tr>
+              <th className="w-[18%] border-b border-border px-3 py-2">
+                Given
+              </th>
+              <th className="w-[18%] border-b border-border px-3 py-2">When</th>
+              <th className="w-[18%] border-b border-border px-3 py-2">Then</th>
+              <th className="w-[150px] border-b border-border px-3 py-2">
+                Status
+              </th>
+              <th className="w-[300px] border-b border-border px-3 py-2">
+                Notes / Refs
+              </th>
+              <th className="w-[120px] border-b border-border px-3 py-2">
+                Save
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.session.items.map((item) => (
+              <SessionExecutionRow
+                key={item.scenarioId}
+                item={item}
+                testerName={testerName}
+                environment={environment}
+                isSaving={props.isSaving}
+                onSave={async (input) => {
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem(
+                      testerNameStorageKey,
+                      testerName.trim()
+                    );
+                  }
+                  await props.onSaveScenario(item.scenarioId, input);
+                }}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {props.saveError ? (
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
+          {props.saveError}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SessionExecutionRow(props: {
+  item: ExecutionSessionDetailDto["items"][number];
+  testerName: string;
+  environment: string;
+  isSaving: boolean;
+  onSave: (input: RecordScenarioResultInput) => Promise<void>;
+}) {
+  const [status, setStatus] = useState<RunStatus>(
+    props.item.resolvedStatus ?? props.item.latestResult?.status ?? "passed"
+  );
+  const [savedStatus, setSavedStatus] = useState<RunStatus | null>(
+    props.item.resolvedStatus
+  );
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [notes, setNotes] = useState(props.item.latestResult?.notes ?? "");
+  const [attachments, setAttachments] = useState<EvidenceDraft[]>(() =>
+    (props.item.latestResult?.attachments ?? []).length > 0
+      ? (props.item.latestResult?.attachments ?? []).map((attachment) => ({
+          id: createSessionEvidenceDraft().id,
+          kind: attachment.kind,
+          value: attachment.value,
+          label: attachment.label ?? ""
+        }))
+      : [createSessionEvidenceDraft()]
+  );
+  const stepGroups = groupSessionSteps(props.item.steps ?? []);
+
+  useEffect(() => {
+    setSavedStatus(props.item.resolvedStatus);
+  }, [props.item.resolvedStatus]);
+
+  return (
+    <tr
+      className={cn(
+        "border-b border-border align-top last:border-b-0",
+        savedStatus ? "bg-card" : "bg-muted/10"
+      )}
+    >
+      <StepCell
+        title={props.item.scenarioTitle}
+        featureTitle={props.item.featureTitle}
+        sourceLine={props.item.sourceLine}
+        steps={stepGroups.given}
+      />
+      <StepCell steps={stepGroups.when} />
+      <StepCell steps={stepGroups.thenSteps} />
+      <td className="border-l border-border px-3 py-3">
+        <div className="grid gap-2">
+          {savedStatus ? (
+            <StatusBadge status={savedStatus} compact />
+          ) : (
+            <span className="w-fit rounded-full border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+              Not saved
+            </span>
+          )}
+          <Select
+            aria-label={`Status for ${props.item.scenarioTitle}`}
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as RunStatus);
+              setSaveState("idle");
+            }}
+            className="h-9"
+          >
+            {runStatusOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </Select>
+          {props.item.isStale ? (
+            <Badge variant="outline" className="w-fit">
+              stale
+            </Badge>
+          ) : null}
+        </div>
+      </td>
+      <td className="border-l border-border px-3 py-3">
+        <div className="grid gap-2">
+          <Textarea
+            aria-label={`Notes for ${props.item.scenarioTitle}`}
+            value={notes}
+            onChange={(event) => {
+              setNotes(event.target.value);
+              setSaveState("idle");
+            }}
+            className="min-h-24 resize-y"
+            placeholder="Observed behavior, setup notes, or blockers"
+          />
+          <RefsDialog
+            scenarioTitle={props.item.scenarioTitle}
+            attachments={attachments}
+            onChange={(nextAttachments) => {
+              setAttachments(nextAttachments);
+              setSaveState("idle");
+            }}
+          />
+        </div>
+      </td>
+      <td className="border-l border-border px-3 py-3">
+        <div className="grid gap-2">
+          <Button
+            type="button"
+            size="sm"
+            disabled={
+              props.isSaving ||
+              saveState === "saving" ||
+              props.testerName.trim().length === 0
+            }
+            onClick={() => {
+              void (async () => {
+                try {
+                  setSaveState("saving");
+                  await props.onSave({
+                    testerName: props.testerName.trim(),
+                    environment: props.environment || undefined,
+                    status,
+                    notes,
+                    attachments: attachments
+                      .filter((attachment) => attachment.value.trim())
+                      .map((attachment) => ({
+                        kind: attachment.kind,
+                        value: attachment.value.trim(),
+                        label: attachment.label.trim() || undefined
+                      }))
+                  });
+                  setSavedStatus(status);
+                  setSaveState("saved");
+                } catch {
+                  setSaveState("error");
+                }
+              })();
+            }}
+          >
+            {saveState === "saving" || props.isSaving ? "Saving..." : "Save"}
+          </Button>
+          <span
+            className={cn(
+              "text-xs",
+              saveState === "saved" && "text-emerald-700 dark:text-emerald-300",
+              saveState === "error" && "text-rose-700 dark:text-rose-300",
+              saveState !== "saved" &&
+                saveState !== "error" &&
+                "text-muted-foreground"
+            )}
+            role={
+              saveState === "saved" || saveState === "error"
+                ? "status"
+                : undefined
+            }
+          >
+            {saveState === "saved"
+              ? "Saved"
+              : saveState === "error"
+                ? "Save failed"
+                : savedStatus
+                  ? "Recorded"
+                  : "Pending"}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function StepCell(props: {
+  title?: string | undefined;
+  featureTitle?: string | undefined;
+  sourceLine?: number | null | undefined;
+  steps: string[];
+}) {
+  return (
+    <td className="px-3 py-3">
+      {props.title ? (
+        <div className="mb-3 grid gap-1 border-b border-border pb-2">
+          <div className="font-medium text-foreground">{props.title}</div>
+          <div className="text-xs text-muted-foreground">
+            {props.featureTitle}
+            {props.sourceLine ? ` · line ${props.sourceLine}` : ""}
+          </div>
+        </div>
+      ) : null}
+      {props.steps.length > 0 ? (
+        <ol className="grid gap-2">
+          {props.steps.map((step, index) => (
+            <li
+              key={`${step}-${index + 1}`}
+              className="rounded-md bg-muted/35 px-2 py-1.5 text-sm leading-5 text-muted-foreground"
+            >
+              {step}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <span className="text-xs text-muted-foreground">-</span>
+      )}
+    </td>
+  );
+}
+
+function RefsDialog(props: {
+  scenarioTitle: string;
+  attachments: EvidenceDraft[];
+  onChange: (attachments: EvidenceDraft[]) => void;
+}) {
+  const attachmentCount = props.attachments.filter((attachment) =>
+    attachment.value.trim()
+  ).length;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          {attachmentCount > 0 ? `Refs (${attachmentCount})` : "Refs"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Refs</DialogTitle>
+          <DialogDescription>{props.scenarioTitle}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          {props.attachments.map((attachment, index) => (
+            <div
+              key={attachment.id}
+              className="grid gap-2 md:grid-cols-[120px_1fr_1fr]"
+            >
+              <Select
+                aria-label={`Ref kind ${index + 1}`}
+                value={attachment.kind}
+                onChange={(event) =>
+                  props.onChange(
+                    props.attachments.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? {
+                            ...item,
+                            kind: event.target.value as EvidenceDraft["kind"]
+                          }
+                        : item
+                    )
+                  )
+                }
+              >
+                <option value="file">file</option>
+                <option value="url">url</option>
+              </Select>
+              <Input
+                aria-label={`Ref value ${index + 1}`}
+                value={attachment.value}
+                onChange={(event) =>
+                  props.onChange(
+                    props.attachments.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, value: event.target.value }
+                        : item
+                    )
+                  )
+                }
+                placeholder={
+                  attachment.kind === "file"
+                    ? "/tmp/screenshot.png"
+                    : "https://example.com/log"
+                }
+              />
+              <Input
+                aria-label={`Ref label ${index + 1}`}
+                value={attachment.label}
+                onChange={(event) =>
+                  props.onChange(
+                    props.attachments.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, label: event.target.value }
+                        : item
+                    )
+                  )
+                }
+                placeholder="Optional label"
+              />
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              props.onChange([
+                ...props.attachments,
+                createSessionEvidenceDraft()
+              ])
+            }
+          >
+            Add ref
+          </Button>
+          <DialogClose asChild>
+            <Button type="button">Done</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1638,6 +2160,31 @@ function resolveSessionScenario(
     nextScenarioId:
       items.find((item) => !item.resolvedStatus)?.scenarioId ?? null
   };
+}
+
+function groupSessionSteps(
+  steps: Array<{ keyword: string; text: string }>
+): Record<"given" | "when" | "thenSteps", string[]> {
+  const groups: Record<"given" | "when" | "thenSteps", string[]> = {
+    given: [],
+    when: [],
+    thenSteps: []
+  };
+  let currentGroup: keyof typeof groups = "given";
+
+  for (const step of steps) {
+    const keyword = step.keyword.trim().toLowerCase();
+    if (keyword === "given") {
+      currentGroup = "given";
+    } else if (keyword === "when") {
+      currentGroup = "when";
+    } else if (keyword === "then") {
+      currentGroup = "thenSteps";
+    }
+    groups[currentGroup].push(step.text);
+  }
+
+  return groups;
 }
 
 function clamp(value: number, min: number, max: number): number {

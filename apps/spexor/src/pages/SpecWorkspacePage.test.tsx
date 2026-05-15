@@ -445,7 +445,12 @@ describe("SpecWorkspacePage", () => {
             scenarioTitle: "Login with valid credentials",
             sortOrder: 1,
             sourceLine: 12,
-            steps: [{ keyword: "Given", text: "the login page is open" }],
+            steps: [
+              { keyword: "Given", text: "a registered user exists" },
+              { keyword: "And", text: "the login page is open" },
+              { keyword: "When", text: "I enter valid credentials" },
+              { keyword: "Then", text: "the dashboard appears" }
+            ],
             environments: ["mac-chrome"],
             latestResult: null,
             resolvedStatus: null,
@@ -469,7 +474,26 @@ describe("SpecWorkspacePage", () => {
           environment: "mac-chrome",
           priority: "high"
         },
-        items: []
+        items: [
+          {
+            scenarioId: "scenario-valid",
+            featureId: "specs/manual/login.feature",
+            featureTitle: "Login",
+            scenarioTitle: "Login with valid credentials",
+            sortOrder: 1,
+            sourceLine: 12,
+            steps: [
+              { keyword: "Given", text: "a registered user exists" },
+              { keyword: "And", text: "the login page is open" },
+              { keyword: "When", text: "I enter valid credentials" },
+              { keyword: "Then", text: "the dashboard appears" }
+            ],
+            environments: ["mac-chrome"],
+            latestResult: null,
+            resolvedStatus: "failed",
+            isStale: false
+          }
+        ]
       });
     saveSessionScenarioRunMock.mockResolvedValue({
       id: "result-1"
@@ -481,6 +505,25 @@ describe("SpecWorkspacePage", () => {
     expect(screen.getAllByText("Auth session")).toHaveLength(2);
     expect(screen.getByText(/0 \/ 1 scenarios resolved/)).toBeInTheDocument();
     expect(screen.getByText("Session execution")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Given" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "When" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Then" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "Notes / Refs" })
+    ).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Save" })).toBeVisible();
+    expect(screen.getByText("Not saved")).toBeInTheDocument();
+    expect(screen.getByText("a registered user exists")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("the login page is open").length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("I enter valid credentials").length
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("the dashboard appears").length).toBeGreaterThan(
+      0
+    );
     expect(
       screen.getByRole("button", { name: "Back to workspace" })
     ).toBeInTheDocument();
@@ -489,14 +532,36 @@ describe("SpecWorkspacePage", () => {
       screen.getByLabelText("Tester or developer"),
       "qa@example.com"
     );
-    await userEvent.click(screen.getByRole("button", { name: "Save result" }));
+    await userEvent.selectOptions(
+      screen.getByLabelText("Status for Login with valid credentials"),
+      "failed"
+    );
+    await userEvent.type(
+      screen.getByLabelText("Notes for Login with valid credentials"),
+      "Needs investigation"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Refs" }));
+    await userEvent.type(screen.getByLabelText("Ref value 1"), "/tmp/log.txt");
+    await userEvent.type(screen.getByLabelText("Ref label 1"), "run log");
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved");
 
     expect(saveSessionScenarioRunMock).toHaveBeenCalledWith(
       "session-1",
       "scenario-valid",
       expect.objectContaining({
         testerName: "qa@example.com",
-        status: "passed"
+        status: "failed",
+        notes: "Needs investigation",
+        attachments: [
+          {
+            kind: "file",
+            value: "/tmp/log.txt",
+            label: "run log"
+          }
+        ]
       })
     );
   });

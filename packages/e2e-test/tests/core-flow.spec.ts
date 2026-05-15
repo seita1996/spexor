@@ -58,10 +58,33 @@ test.describe("Spexor core flow", () => {
     await expect(
       page.getByRole("button", { name: "Back to workspace" })
     ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Given" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "When" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Then" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Status" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Notes / Refs" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Save" })
+    ).toBeVisible();
+    await expect(page.getByText("Not saved").first()).toBeVisible();
     await page.getByLabel("Tester or developer").fill("qa@spexor.local");
     await page.getByLabel("Environment").last().selectOption("mac-chrome");
-    await page.getByLabel("Notes").fill("Manual smoke coverage completed.");
-    await page.getByRole("button", { name: "Save result" }).click();
+    await page
+      .getByRole("textbox", { name: /Notes for/i })
+      .first()
+      .fill("Manual smoke coverage completed.");
+    await page.getByRole("button", { name: "Save" }).first().click();
+    await expect(page.getByRole("status").first()).toHaveText("Saved");
 
     await expect(
       page.getByText("Manual smoke coverage completed.").first()
