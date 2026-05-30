@@ -15,7 +15,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./aws-lambda": "./src/aws-lambda.ts",
-    "./cloudflare": "./src/cloudflare.ts"
+    "./cloudflare": "./src/cloudflare.ts",
+    "./notion": "./src/notion.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
