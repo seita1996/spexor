@@ -9,7 +9,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "lefthook"
-    ]
+    ],
+    "overrides": {
+      "shell-quote": "^1.8.4"
+    }
   },
   "scripts": {
     "dev": "pnpm --filter @spexor/spexor dev",
@@ -40,7 +43,7 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.4.20",
-    "concurrently": "^9.1.2",
+    "concurrently": "^9.2.1",
     "jsdom": "^29.0.1",
     "lefthook": "^2.1.6",
     "oxlint": "^1.29.0",
