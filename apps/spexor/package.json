@@ -33,7 +33,7 @@
     "@spexor/results-hub": "workspace:*",
     "@spexor/ui": "workspace:*",
     "@tailwindcss/postcss": "^4.3.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "postcss": "^8.5.14",
