@@ -1,5 +1,8 @@
 ---
+id: spexor.spec-catalog
 title: Spec catalog
+domain: catalog
+lifecycle: active
 environments:
   - mac-chrome
 tags:
@@ -22,11 +25,13 @@ verification:
 
 Feature: Spexor spec catalog
 
+  @spexor-id:spexor.spec-catalog.browse
   Scenario: Browse the self-hosted spec catalog
     Given Spexor indexes its own manual specs from the repository
     When I open the spec list
     Then I should find feature entries for Spexor's own workflows
 
+  @spexor-id:spexor.spec-catalog.filter
   Scenario: Filter the catalog before opening a feature
     Given the spec catalog contains features with multiple tags
     When I filter by a specific tag

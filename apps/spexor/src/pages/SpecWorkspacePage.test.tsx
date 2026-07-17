@@ -59,6 +59,11 @@ describe("SpecWorkspacePage", () => {
     getSpecsMock.mockResolvedValue([
       {
         featureId: "specs/manual/login.feature",
+        identity: {
+          id: "authentication.login",
+          source: "explicit",
+          stable: true
+        },
         title: "Login",
         featureTitle: "User login",
         filePath: "specs/manual/login.feature",
@@ -66,7 +71,10 @@ describe("SpecWorkspacePage", () => {
         issueCount: 0,
         issues: [],
         metadata: {
+          id: "authentication.login",
           title: "Login",
+          domain: "authentication",
+          lifecycle: "active",
           environments: ["mac-chrome"],
           tags: ["auth"],
           priority: "high",
@@ -120,6 +128,11 @@ describe("SpecWorkspacePage", () => {
       if (featureId === "specs/manual/login.feature") {
         return Promise.resolve({
           featureId,
+          identity: {
+            id: "authentication.login",
+            source: "explicit",
+            stable: true
+          },
           title: "Login",
           featureTitle: "User login",
           filePath: featureId,
@@ -127,6 +140,9 @@ describe("SpecWorkspacePage", () => {
           issueCount: 0,
           issues: [],
           metadata: {
+            id: "authentication.login",
+            domain: "authentication",
+            lifecycle: "active",
             environments: ["mac-chrome"],
             tags: ["auth"],
             related: [],
@@ -177,6 +193,11 @@ describe("SpecWorkspacePage", () => {
               cases: [
                 {
                   id: "scenario-valid",
+                  identity: {
+                    id: "authentication.login.valid-credentials",
+                    source: "explicit",
+                    stable: true
+                  },
                   scenarioId: "scenario-valid",
                   title: "Login with valid credentials",
                   description: "Happy path",
@@ -192,6 +213,11 @@ describe("SpecWorkspacePage", () => {
                 },
                 {
                   id: "scenario-invalid",
+                  identity: {
+                    id: "authentication.login.invalid-credentials",
+                    source: "explicit",
+                    stable: true
+                  },
                   scenarioId: "scenario-invalid",
                   title: "Login with invalid credentials",
                   description: "Sad path",
@@ -296,8 +322,20 @@ describe("SpecWorkspacePage", () => {
     );
     renderWorkspace();
 
-    await screen.findByText("Spec Explorer");
+    await screen.findByText("Explore");
     expect(syncSpecsMock).toHaveBeenCalled();
+    expect(
+      screen.queryByText("Implementation checkpoints")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("folder filters later")).not.toBeInTheDocument();
+    expect(screen.queryByText("browser filters later")).not.toBeInTheDocument();
+    expect(
+      screen.getByTitle("Legacy ID: add an explicit Feature ID")
+    ).toBeInTheDocument();
+    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(
+      screen.getByText("Feature ID: authentication.login")
+    ).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveStyle({
       "--left-pane-width": "420px",
       "--right-pane-width": "480px"
@@ -342,6 +380,17 @@ describe("SpecWorkspacePage", () => {
     expect(
       await screen.findByText("No local or shared results yet.")
     ).toBeInTheDocument();
+
+    await userEvent.type(
+      screen.getByLabelText("Search scenarios, tags, files"),
+      "authentication.login.valid-credentials"
+    );
+    expect(
+      screen.getByRole("button", { name: /Login with valid credentials/i })
+    ).toBeInTheDocument();
+    await userEvent.clear(
+      screen.getByLabelText("Search scenarios, tags, files")
+    );
 
     await userEvent.type(
       screen.getByLabelText("Search scenarios, tags, files"),
@@ -501,10 +550,10 @@ describe("SpecWorkspacePage", () => {
 
     renderWorkspace("/sessions/session-1", "/sessions/:sessionId");
 
-    await screen.findByText("Session Explorer");
+    await screen.findByText("Run Explorer");
     expect(screen.getAllByText("Auth session")).toHaveLength(2);
     expect(screen.getByText(/0 \/ 1 scenarios resolved/)).toBeInTheDocument();
-    expect(screen.getByText("Session execution")).toBeInTheDocument();
+    expect(screen.getByText("Run execution")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Given" })).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "When" })).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "Then" })).toBeVisible();

@@ -127,6 +127,7 @@ export async function createSpecFile(options = {}) {
     outputPath,
     specTemplate({
       title,
+      id: `spec.${slugify(title)}`,
       scenarioTitle: options.scenarioTitle,
       tags: options.tags ?? [],
       environments: deriveEnvironments(
@@ -426,7 +427,7 @@ export async function runCommand(command, args, options = {}) {
 
       reject(
         new Error(
-          `Command failed (${code ?? "unknown"}): ${command} ${args.join(" ")}`
+          `Command failed (${code ?? "unknown"}): ${command} ${args.join(" ")}${stderr ? `\n${stderr.trim()}` : ""}`
         )
       );
     });
@@ -457,6 +458,7 @@ Usage:
 
 function starterFeatureTemplate() {
   return `---
+id: spexor.getting-started
 title: Getting started
 tags:
   - smoke
@@ -464,6 +466,7 @@ tags:
 
 Feature: Spexor project bootstrap
 
+  @spexor-id:spexor.getting-started.first-run
   Scenario: Record the first manual run
     Given Spexor is installed in this repository
     When a tester opens the local app
@@ -475,6 +478,7 @@ function specTemplate(options) {
   const frontmatter = [];
 
   frontmatter.push("---");
+  frontmatter.push(`id: ${options.id}`);
   frontmatter.push(`title: ${options.title}`);
   pushYamlList(frontmatter, "environments", options.environments);
   pushYamlList(frontmatter, "tags", options.tags);
@@ -494,6 +498,7 @@ function specTemplate(options) {
 
 Feature: ${options.title}
 
+  @spexor-id:${options.id}.${slugify(scenarioTitle)}
   Scenario: ${scenarioTitle}
     Given the spec is ready for manual execution
     When a tester reviews the scenario

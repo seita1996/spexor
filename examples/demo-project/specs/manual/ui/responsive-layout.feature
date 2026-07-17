@@ -1,5 +1,8 @@
 ---
+id: ui.responsive-layout
 title: Responsive smoke checks
+domain: user-interface
+lifecycle: active
 environments:
   - ios-safari
   - android-chrome
@@ -14,6 +17,7 @@ related:
 
 Feature: Responsive layout smoke checks
 
+  @spexor-id:ui.responsive-layout.core-pages
   Scenario Outline: Core pages render without layout breaks
     Given I open the <page_name> page on a <viewport> viewport
     When the page finishes loading

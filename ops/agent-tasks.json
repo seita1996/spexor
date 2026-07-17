@@ -1,6 +1,6 @@
 {
-  "lastReviewedOn": "2026-03-28",
-  "currentFocus": "Stabilize the Codex-first development harness for the Spexor workspace.",
+  "lastReviewedOn": "2026-07-11",
+  "currentFocus": "Capture Git context and immutable specification snapshots for commit-aware verification runs.",
   "startupRoutine": [
     "Confirm cwd and clean/dirty git state.",
     "Read the last five commits.",
@@ -17,9 +17,45 @@
     },
     {
       "id": "e2e-smoke",
+      "priority": "high",
+      "status": "done",
+      "summary": "Add browser-level smoke coverage for the core spec list and feature detail flows."
+    },
+    {
+      "id": "product-ui-cleanup",
+      "priority": "high",
+      "status": "done",
+      "summary": "Remove development-only UI content and establish product-facing Explore and Run terminology."
+    },
+    {
+      "id": "stable-spec-identity",
+      "priority": "high",
+      "status": "done",
+      "summary": "Use explicit feature and scenario identities as primary keys, with legacy fallback for specs awaiting migration."
+    },
+    {
+      "id": "commit-aware-runs",
+      "priority": "high",
+      "status": "todo",
+      "summary": "Capture Git context and immutable specification snapshots for verification runs."
+    },
+    {
+      "id": "explore-mode",
+      "priority": "high",
+      "status": "todo",
+      "summary": "Create a read-optimized Explore mode for browsing version-controlled specifications."
+    },
+    {
+      "id": "regression-run-ux",
       "priority": "medium",
       "status": "todo",
-      "summary": "Add browser-level smoke coverage for the core spec list and feature detail flows."
+      "summary": "Improve verification runs with progress, shortcuts, retry, and completion summaries."
+    },
+    {
+      "id": "run-reporting",
+      "priority": "medium",
+      "status": "todo",
+      "summary": "Export verification runs as Markdown, JSON, and JUnit."
     },
     {
       "id": "architecture-guards",

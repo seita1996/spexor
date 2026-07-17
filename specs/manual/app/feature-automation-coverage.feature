@@ -1,5 +1,8 @@
 ---
+id: spexor.automation-coverage
 title: Automated coverage display
+domain: catalog
+lifecycle: active
 environments:
   - mac-chrome
 tags:
@@ -23,11 +26,13 @@ verification:
 
 Feature: Spexor automated coverage display
 
+  @spexor-id:spexor.automation-coverage.inspect
   Scenario: Inspect linked automated checks from a feature
     Given a feature links Vitest and Playwright coverage in frontmatter
     When I open the feature detail page
     Then I should see structured automated coverage grouped by runner and file
 
+  @spexor-id:spexor.automation-coverage.manual
   Scenario: Preserve manual execution alongside automated links
     Given a feature is linked to automated tests
     When I review its detail page

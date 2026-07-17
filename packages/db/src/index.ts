@@ -15,6 +15,7 @@ import {
   type ParsedSpecFile,
   type RunStatus,
   type ScenarioCaseSpec,
+  type SpecIdentity,
   type StepSpec
 } from "@spexor/domain";
 
@@ -32,6 +33,7 @@ export interface SpecFileRecord {
 
 export interface FeatureRecord {
   featureKey: string;
+  identitySource: SpecIdentity["source"];
   specRelativePath: string;
   featureTitle: string;
   displayTitle: string;
@@ -47,6 +49,7 @@ export interface FeatureRecord {
 
 export interface ScenarioRecord {
   scenarioKey: string;
+  identitySource: SpecIdentity["source"];
   featureKey: string;
   groupKey: string;
   groupTitle: string;
@@ -198,6 +201,7 @@ interface SpecFileRow {
 
 interface FeatureRow {
   feature_key: unknown;
+  identity_source: unknown;
   spec_relative_path: unknown;
   feature_title: unknown;
   display_title: unknown;
@@ -213,6 +217,7 @@ interface FeatureRow {
 
 interface ScenarioRow {
   scenario_key: unknown;
+  identity_source: unknown;
   feature_key: unknown;
   group_key: unknown;
   group_title: unknown;
@@ -308,6 +313,7 @@ const schema = `
 
   CREATE TABLE IF NOT EXISTS features (
     feature_key TEXT PRIMARY KEY,
+    identity_source TEXT NOT NULL,
     spec_relative_path TEXT NOT NULL,
     feature_title TEXT NOT NULL,
     display_title TEXT NOT NULL,
@@ -324,6 +330,7 @@ const schema = `
 
   CREATE TABLE IF NOT EXISTS scenarios (
     scenario_key TEXT PRIMARY KEY,
+    identity_source TEXT NOT NULL,
     feature_key TEXT NOT NULL,
     group_key TEXT NOT NULL,
     group_title TEXT NOT NULL,
@@ -424,8 +431,9 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   const database = new DatabaseSync(dbPath);
   database.exec("PRAGMA journal_mode = WAL;");
   database.exec("PRAGMA foreign_keys = ON;");
+  resetLegacySchema(database);
   database.exec(schema);
-  ensureRunsEnvironmentColumn(database);
+  database.exec("PRAGMA user_version = 2;");
 
   const upsertSpecFile = database.prepare(`
     INSERT INTO spec_files (
@@ -446,13 +454,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
 
   const upsertFeature = database.prepare(`
     INSERT INTO features (
-      feature_key, spec_relative_path, feature_title, display_title, description, metadata_json, background_json,
+      feature_key, identity_source, spec_relative_path, feature_title, display_title, description, metadata_json, background_json,
       source_line, parse_health, issue_count, is_active, synced_at
     ) VALUES (
-      @feature_key, @spec_relative_path, @feature_title, @display_title, @description, @metadata_json, @background_json,
+      @feature_key, @identity_source, @spec_relative_path, @feature_title, @display_title, @description, @metadata_json, @background_json,
       @source_line, @parse_health, @issue_count, 1, @synced_at
     )
     ON CONFLICT(feature_key) DO UPDATE SET
+      identity_source = excluded.identity_source,
       spec_relative_path = excluded.spec_relative_path,
       feature_title = excluded.feature_title,
       display_title = excluded.display_title,
@@ -468,13 +477,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
 
   const upsertScenario = database.prepare(`
     INSERT INTO scenarios (
-      scenario_key, feature_key, group_key, group_title, title, description, kind, group_kind, outline_title,
+      scenario_key, identity_source, feature_key, group_key, group_title, title, description, kind, group_kind, outline_title,
       example_name, example_index, example_values_json, steps_json, tags_json, source_line, sort_order, is_active, synced_at
     ) VALUES (
-      @scenario_key, @feature_key, @group_key, @group_title, @title, @description, @kind, @group_kind, @outline_title,
+      @scenario_key, @identity_source, @feature_key, @group_key, @group_title, @title, @description, @kind, @group_kind, @outline_title,
       @example_name, @example_index, @example_values_json, @steps_json, @tags_json, @source_line, @sort_order, 1, @synced_at
     )
     ON CONFLICT(scenario_key) DO UPDATE SET
+      identity_source = excluded.identity_source,
       feature_key = excluded.feature_key,
       group_key = excluded.group_key,
       group_title = excluded.group_title,
@@ -494,30 +504,12 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       synced_at = excluded.synced_at
   `);
 
-  const deactivateMissing = (relativePaths: string[]) => {
-    const activeFlag =
-      relativePaths.length === 0
-        ? ""
-        : `WHERE relative_path NOT IN (${relativePaths.map(() => "?").join(", ")})`;
-    database
-      .prepare(`UPDATE spec_files SET is_active = 0 ${activeFlag}`)
-      .run(...relativePaths);
-    const featureFlag =
-      relativePaths.length === 0
-        ? ""
-        : `WHERE feature_key NOT IN (${relativePaths.map(() => "?").join(", ")})`;
-    database
-      .prepare(`UPDATE features SET is_active = 0 ${featureFlag}`)
-      .run(...relativePaths);
-    database
-      .prepare(`UPDATE scenarios SET is_active = 0 ${featureFlag}`)
-      .run(...relativePaths);
-  };
-
   const saveParsedSpecsTransaction = (parsedFiles: ParsedSpecFile[]) =>
     runTransaction(database, () => {
       const now = new Date().toISOString();
-      deactivateMissing(parsedFiles.map((file) => file.relativePath));
+      database.exec("UPDATE spec_files SET is_active = 0;");
+      database.exec("UPDATE features SET is_active = 0;");
+      database.exec("UPDATE scenarios SET is_active = 0;");
 
       for (const parsedFile of parsedFiles) {
         upsertSpecFile.run({
@@ -534,12 +526,13 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         if (!parsedFile.feature) {
           database
             .prepare(
-              "UPDATE features SET is_active = 0, synced_at = ? WHERE feature_key = ?"
+              "UPDATE features SET is_active = 0, synced_at = ? WHERE spec_relative_path = ?"
             )
             .run(now, parsedFile.relativePath);
           database
             .prepare(
-              "UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?"
+              `UPDATE scenarios SET is_active = 0, synced_at = ?
+               WHERE feature_key IN (SELECT feature_key FROM features WHERE spec_relative_path = ?)`
             )
             .run(now, parsedFile.relativePath);
           continue;
@@ -624,12 +617,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .get(relativePath) as unknown as SpecFileRow | undefined;
       return row ? toSpecFileRecord(row) : null;
     },
-    getFeature(relativePath) {
+    getFeature(identifier) {
       const row = database
         .prepare(
-          "SELECT * FROM features WHERE feature_key = ? AND is_active = 1 LIMIT 1"
+          `SELECT * FROM features
+           WHERE (feature_key = ? OR spec_relative_path = ?) AND is_active = 1
+           LIMIT 1`
         )
-        .get(relativePath) as unknown as FeatureRow | undefined;
+        .get(identifier, identifier) as unknown as FeatureRow | undefined;
       return row ? toFeatureRecord(row) : null;
     },
     getSpecsOverview() {
@@ -637,7 +632,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .prepare(`
           SELECT sf.*, COUNT(s.scenario_key) AS scenario_count
           FROM spec_files sf
-          LEFT JOIN scenarios s ON s.feature_key = sf.relative_path AND s.is_active = 1
+          LEFT JOIN features f
+            ON f.spec_relative_path = sf.relative_path AND f.is_active = 1
+          LEFT JOIN scenarios s
+            ON s.feature_key = f.feature_key AND s.is_active = 1
           WHERE sf.is_active = 1
           GROUP BY sf.relative_path
           ORDER BY sf.relative_path
@@ -1086,7 +1084,8 @@ function saveFeatureSnapshot(
   now: string
 ): void {
   upsertFeature.run({
-    feature_key: feature.relativePath,
+    feature_key: feature.id,
+    identity_source: feature.identity.source,
     spec_relative_path: feature.relativePath,
     feature_title: feature.title,
     display_title: feature.metadata.title ?? feature.title,
@@ -1103,7 +1102,7 @@ function saveFeatureSnapshot(
     .prepare(
       "UPDATE scenarios SET is_active = 0, synced_at = ? WHERE feature_key = ?"
     )
-    .run(now, feature.relativePath);
+    .run(now, feature.id);
 
   const cases = expandFeatureCases(feature);
   const scenarioIndexMap = new Map<string, ScenarioCaseSpec[]>();
@@ -1131,12 +1130,7 @@ function saveFeatureSnapshot(
 
       sortOrder += 1;
       upsertScenario.run(
-        buildScenarioInsertRecord(
-          feature.relativePath,
-          scenario,
-          scenarioCase,
-          sortOrder
-        )
+        buildScenarioInsertRecord(feature.id, scenario, scenarioCase, sortOrder)
       );
       continue;
     }
@@ -1144,12 +1138,7 @@ function saveFeatureSnapshot(
     for (const scenarioCase of groupCases) {
       sortOrder += 1;
       upsertScenario.run(
-        buildScenarioInsertRecord(
-          feature.relativePath,
-          scenario,
-          scenarioCase,
-          sortOrder
-        )
+        buildScenarioInsertRecord(feature.id, scenario, scenarioCase, sortOrder)
       );
     }
   }
@@ -1163,6 +1152,7 @@ function buildScenarioInsertRecord(
 ): Record<string, SQLInputValue> {
   return {
     scenario_key: scenarioCase.id,
+    identity_source: scenarioCase.identity.source,
     feature_key: featureKey,
     group_key: scenario.id,
     group_title: scenario.title,
@@ -1245,23 +1235,36 @@ function toLatestResultRecord(
   };
 }
 
-function ensureRunsEnvironmentColumn(database: DatabaseSync): void {
-  const columns = database.prepare("PRAGMA table_info(runs)").all() as Array<{
-    name?: unknown;
-  }>;
+function resetLegacySchema(database: DatabaseSync): void {
+  const versionRow = database.prepare("PRAGMA user_version").get() as
+    | { user_version?: unknown }
+    | undefined;
+  const version = Number(versionRow?.user_version ?? 0);
+  const hasTables = Boolean(
+    database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'spec_files'"
+      )
+      .get()
+  );
 
-  if (!columns.some((column) => String(column.name) === "environment")) {
-    database.exec("ALTER TABLE runs ADD COLUMN environment TEXT;");
+  if (!hasTables || version >= 2) {
+    return;
   }
 
+  database.exec("PRAGMA foreign_keys = OFF;");
   database.exec(`
-    UPDATE runs
-    SET environment = CASE
-      WHEN platform IS NOT NULL AND browser IS NOT NULL THEN platform || '-' || browser
-      ELSE COALESCE(platform, browser)
-    END
-    WHERE environment IS NULL
+    DROP TABLE IF EXISTS attachments;
+    DROP TABLE IF EXISTS execution_session_items;
+    DROP TABLE IF EXISTS execution_sessions;
+    DROP TABLE IF EXISTS run_results;
+    DROP TABLE IF EXISTS runs;
+    DROP TABLE IF EXISTS scenarios;
+    DROP TABLE IF EXISTS features;
+    DROP TABLE IF EXISTS spec_files;
+    DROP TABLE IF EXISTS shared_sync_state;
   `);
+  database.exec("PRAGMA foreign_keys = ON;");
 }
 
 function toSpecFileRecord(row: SpecFileRow): SpecFileRecord {
@@ -1281,6 +1284,7 @@ function toSpecFileRecord(row: SpecFileRow): SpecFileRecord {
 function toFeatureRecord(row: FeatureRow): FeatureRecord {
   return {
     featureKey: String(row.feature_key),
+    identitySource: String(row.identity_source) as SpecIdentity["source"],
     specRelativePath: String(row.spec_relative_path),
     featureTitle: String(row.feature_title),
     displayTitle: String(row.display_title),
@@ -1298,6 +1302,7 @@ function toFeatureRecord(row: FeatureRow): FeatureRecord {
 function toScenarioRecord(row: ScenarioRow): ScenarioRecord {
   return {
     scenarioKey: String(row.scenario_key),
+    identitySource: String(row.identity_source) as SpecIdentity["source"],
     featureKey: String(row.feature_key),
     groupKey: String(row.group_key),
     groupTitle: String(row.group_title),

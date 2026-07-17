@@ -9,13 +9,14 @@
 [![npm version](https://img.shields.io/npm/v/%40spexor%2Fspexor)](https://www.npmjs.com/package/@spexor/spexor)
 ![NPM Downloads](https://img.shields.io/npm/dy/%40spexor%2Fspexor)
 
-Spexor is a Git-native manual spec runner for Gherkin-based workflows.
+Spexor is a local-first workspace for exploring, running, and tracking version-controlled Gherkin specifications.
 
 It keeps manual test specifications close to source code as `.feature` files, lets a developer or QA engineer execute those specs in a local GUI, and stores execution history in SQLite without turning the spec source of truth into a database.
 
 ## What Spexor is
 
 - A local-first manual execution tool for Gherkin specs
+- A readable specification catalog for day-to-day product understanding
 - A Git-managed workflow where `.feature` files stay in the repo
 - A base layer for future living documentation across manual and automated specs
 - An OSS-friendly MVP with explicit packages and boring architecture
@@ -79,6 +80,8 @@ If the target project has no config yet, Spexor defaults to `./specs/manual`, `.
 3. Add `.feature` files with optional YAML frontmatter.
 4. Restart the app or use the in-app rescan button.
 
+Give each Feature and Scenario an explicit stable ID so history survives source moves and title changes. See [Spec format](./docs/spec-format.md).
+
 Example config:
 
 ```ts
@@ -92,7 +95,7 @@ export default {
 
 ## Record manual runs
 
-1. Open a feature from the specs list.
+1. Open a feature from Explore.
 2. Choose a scenario or outline example row.
 3. Set the status, tester name, notes, and any evidence references.
 4. Save the result.
@@ -126,5 +129,6 @@ Codex-centered development in this repository uses deterministic harness command
 - [ADR 0002: Codex turn-boundary guardrails](./docs/adr/0002-codex-turn-boundary-guardrails.md)
 - [ADR 0003: Low-cost shared results hub](./docs/adr/0003-low-cost-shared-results-hub.md)
 - [ADR 0004: CLI setup and hub deploy](./docs/adr/0004-cli-setup-and-hub-deploy.md)
+- [ADR 0005: Stable specification identity](./docs/adr/0005-stable-specification-identity.md)
 - [Spec format](./docs/spec-format.md)
 - [Local data model](./docs/local-data-model.md)

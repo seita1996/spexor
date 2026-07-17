@@ -1,5 +1,8 @@
 ---
+id: spexor.execution-session
 title: Execution session flow
+domain: execution
+lifecycle: active
 environments:
   - mac-chrome
 tags:
@@ -23,11 +26,13 @@ verification:
 
 Feature: Spexor execution session
 
+  @spexor-id:spexor.execution-session.resolve
   Scenario: Resolve a feature session end-to-end
     Given I start a feature session from a feature detail page
     When I record results for all remaining scenario cases
     Then I should see the session marked complete
 
+  @spexor-id:spexor.execution-session.return
   Scenario: Return to the feature after completion
     Given all session test cases are resolved
     When the completion dialog appears

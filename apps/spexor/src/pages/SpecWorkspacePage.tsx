@@ -48,6 +48,7 @@ import { cn } from "../lib/utils";
 
 interface CatalogFeatureNode {
   id: string;
+  identity: SpecsListItemDto["identity"];
   title: string;
   featureTitle?: string | undefined;
   filePath: string;
@@ -65,6 +66,7 @@ interface CatalogFeatureNode {
 
 interface CatalogScenarioNode {
   id: string;
+  identity: ScenarioCaseDto["identity"];
   featureId: string;
   featureTitle: string;
   featurePath: string;
@@ -81,14 +83,6 @@ interface CatalogScenarioNode {
   exampleName?: string | undefined;
   exampleIndex?: number | undefined;
   exampleValues?: Record<string, string> | undefined;
-}
-
-interface CheckpointRecord {
-  title: string;
-  files: string[];
-  changes: string;
-  verification: string;
-  remaining: string;
 }
 
 interface EvidenceDraft {
@@ -116,51 +110,6 @@ function createSessionEvidenceDraft(): EvidenceDraft {
     label: ""
   };
 }
-
-const checkpointRecords: CheckpointRecord[] = [
-  {
-    title: "Checkpoint 1: Catalog normalization",
-    files: ["apps/spexor/src/pages/SpecWorkspacePage.tsx"],
-    changes:
-      "Normalize existing specs and feature detail DTOs into feature/scenario nodes without changing API or DB contracts.",
-    verification:
-      "Unit coverage should assert search and selection behavior; quality gate: pnpm guard:fast.",
-    remaining:
-      "Catalog API is additive; the client still keeps a fallback for older running API processes."
-  },
-  {
-    title: "Checkpoint 2-3: Explorer and scenario search",
-    files: ["apps/spexor/src/pages/SpecWorkspacePage.tsx"],
-    changes:
-      "Add a left Spec Explorer with feature/scenario hierarchy, selected state, status badges, file paths, tags, and search.",
-    verification:
-      "Search by scenario title, tag, and file path in browser and tests.",
-    remaining: "Folder and browser filters are reserved for a later PR."
-  },
-  {
-    title: "Checkpoint 4-5: Scenario workspace and manual execution",
-    files: [
-      "apps/spexor/src/pages/SpecWorkspacePage.tsx",
-      "apps/spexor/src/components/ScenarioExecutionPanel.tsx"
-    ],
-    changes:
-      "Show selected scenario detail, Gherkin steps, background, and reuse the existing run recording panel.",
-    verification:
-      "Save result through POST /api/scenarios/:id/runs and verify UI reloads the selected feature.",
-    remaining:
-      "Batch session routes now land in the workspace; dedicated batch-progress UX can be added later."
-  },
-  {
-    title: "Checkpoint 6-8: Context, states, and accessibility",
-    files: ["apps/spexor/src/pages/SpecWorkspacePage.tsx"],
-    changes:
-      "Add persistent Context/History panel, loading/error/empty states, keyboard-selectable tree items, and focus styles.",
-    verification:
-      "Browser sanity check at http://127.0.0.1:4173/ plus pnpm test.",
-    remaining:
-      "Advanced keyboard shortcuts are intentionally deferred; native Tab/Enter/Space behavior is supported."
-  }
-];
 
 const paneWidthDefaults = {
   left: 300,
@@ -517,7 +466,7 @@ export function SpecWorkspacePage() {
             try {
               setStartingSession(true);
               const session = await createExecutionSession({
-                name: `Feature session: ${selectedFeature.title}`,
+                name: `Feature run: ${selectedFeature.title}`,
                 filters: {
                   search: "",
                   tag: "",
@@ -717,7 +666,7 @@ function SpecExplorer(props: {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-xs font-semibold uppercase text-muted-foreground">
-                {props.executionSession ? "Session Explorer" : "Spec Explorer"}
+                {props.executionSession ? "Run Explorer" : "Explore"}
               </h1>
               <div className="mt-1 text-xs text-muted-foreground">
                 {props.allFeatureCount} files / {props.totalScenarioCount}{" "}
@@ -783,14 +732,6 @@ function SpecExplorer(props: {
                 ))}
               </select>
             </label>
-          </div>
-          <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-            <span className="rounded border border-border bg-background px-2 py-1">
-              folder filters later
-            </span>
-            <span className="rounded border border-border bg-background px-2 py-1">
-              browser filters later
-            </span>
           </div>
         </section>
 
@@ -887,6 +828,14 @@ function FeatureTree(props: {
           <span className="min-w-0 flex-1 truncate text-xs font-semibold">
             {props.feature.title}
           </span>
+          {!props.feature.identity.stable ? (
+            <span
+              title="Legacy ID: add an explicit Feature ID"
+              className="text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+            >
+              ID!
+            </span>
+          ) : null}
           <TreeStatusDot status={props.feature.status} />
         </div>
         <div className="truncate pl-4 font-mono text-[10px] text-muted-foreground">
@@ -925,6 +874,14 @@ function FeatureTree(props: {
                 <span className="min-w-0 flex-1 truncate">
                   {scenario.title}
                 </span>
+                {!scenario.identity?.stable ? (
+                  <span
+                    title="Legacy ID: add an explicit Scenario ID"
+                    className="text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                  >
+                    ID!
+                  </span>
+                ) : null}
                 {scenario.sourceLine ? (
                   <span className="text-[10px] text-muted-foreground">
                     {scenario.sourceLine}
@@ -979,7 +936,7 @@ function SessionProgressSummary(props: { session: ExecutionSessionDetailDto }) {
         resolved · {completionRate}%
       </div>
       <div className="text-muted-foreground">
-        {props.session.status === "completed" ? "Completed" : "Active session"}
+        {props.session.status === "completed" ? "Completed" : "Active run"}
       </div>
     </section>
   );
@@ -1219,9 +1176,7 @@ function ScenarioWorkspace(props: {
                 disabled={props.startingSession}
                 onClick={() => void props.onStartFeatureSession()}
               >
-                {props.startingSession
-                  ? "Starting..."
-                  : "Start feature session"}
+                {props.startingSession ? "Starting..." : "Start feature run"}
               </Button>
             </div>
             <ScenarioExecutionPanel
@@ -1280,11 +1235,11 @@ function SessionExecutionGrid(props: {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
           <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Session execution
+            Run execution
           </h3>
           <p className="text-sm text-muted-foreground">
-            Record each scenario directly from the active execution session.
-            Rows stay neutral until they are saved.
+            Record each scenario directly from the active run. Rows stay neutral
+            until they are saved.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[minmax(180px,240px)_minmax(160px,220px)]">
@@ -1709,6 +1664,17 @@ function FeatureHealthSummary(props: { feature: CatalogFeatureNode }) {
     <div className="flex flex-wrap items-center gap-2">
       <ParseHealthBadge health={props.feature.parseHealth} />
       <StatusBadge status={props.feature.status ?? "not-run"} compact />
+      <Badge variant="outline">
+        {props.feature.metadata.lifecycle ?? "active"}
+      </Badge>
+      {!props.feature.identity.stable ? (
+        <Badge
+          variant="outline"
+          className="border-amber-500/40 text-amber-700 dark:text-amber-300"
+        >
+          Legacy ID
+        </Badge>
+      ) : null}
       <span className="rounded-full border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">
         {props.feature.scenarioCount} scenario
         {props.feature.scenarioCount === 1 ? "" : "s"}
@@ -1756,6 +1722,23 @@ function ScenarioContextPanel(props: {
                   {props.feature?.metadata.environments.join(", ") || "none"}
                 </div>
                 <div>Owner: {props.feature?.metadata.owner ?? "none"}</div>
+                <div>Domain: {props.feature?.metadata.domain ?? "none"}</div>
+                <div>
+                  Lifecycle: {props.feature?.metadata.lifecycle ?? "active"}
+                </div>
+                <div className="break-all font-mono">
+                  Feature ID: {props.feature?.identity.id ?? "unknown"}
+                </div>
+                <div className="break-all font-mono">
+                  Scenario ID: {props.scenario.identity.id}
+                </div>
+                {!props.scenario.identity.stable ||
+                !props.feature?.identity.stable ? (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-2 font-sans text-amber-800 dark:text-amber-200">
+                    This specification uses a legacy path-based ID. Add an
+                    explicit ID to keep history stable across renames and moves.
+                  </div>
+                ) : null}
               </div>
             </>
           ) : (
@@ -1826,37 +1809,6 @@ function ScenarioContextPanel(props: {
               )}
             </div>
           ) : null}
-        </section>
-
-        <section className="grid gap-2 rounded-lg border border-border bg-card p-4">
-          <h2 className="text-xs font-semibold uppercase text-muted-foreground">
-            Implementation checkpoints
-          </h2>
-          {checkpointRecords.map((record) => (
-            <details key={record.title} className="rounded-md border p-3">
-              <summary className="cursor-pointer text-sm font-medium">
-                {record.title}
-              </summary>
-              <dl className="mt-3 grid gap-2 text-xs text-muted-foreground">
-                <div>
-                  <dt className="font-semibold text-foreground">Files</dt>
-                  <dd>{record.files.join(", ")}</dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-foreground">Changes</dt>
-                  <dd>{record.changes}</dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-foreground">Check</dt>
-                  <dd>{record.verification}</dd>
-                </div>
-                <div>
-                  <dt className="font-semibold text-foreground">Remaining</dt>
-                  <dd>{record.remaining}</dd>
-                </div>
-              </dl>
-            </details>
-          ))}
         </section>
       </div>
     </aside>
@@ -1983,6 +1935,11 @@ function toFeatureNodes(
 ): CatalogFeatureNode[] {
   return items.map((item) => ({
     id: item.featureId,
+    identity: item.identity ?? {
+      id: item.featureId,
+      source: "legacy",
+      stable: false
+    },
     title: item.title,
     featureTitle: item.featureTitle,
     filePath: item.filePath,
@@ -2007,6 +1964,11 @@ function flattenScenarios(
     (feature.detail?.scenarioGroups ?? []).flatMap((group) =>
       group.cases.map((scenario) => ({
         id: scenario.id,
+        identity: scenario.identity ?? {
+          id: scenario.scenarioId,
+          source: "legacy",
+          stable: false
+        },
         featureId: feature.id,
         featureTitle: feature.title,
         featurePath: feature.filePath,
@@ -2052,8 +2014,11 @@ function filterFeatures(
     const featureMatches = [
       feature.title,
       feature.featureTitle,
+      feature.identity.id,
       feature.filePath,
       feature.metadata.owner,
+      feature.metadata.domain,
+      feature.metadata.lifecycle,
       ...feature.metadata.tags,
       ...feature.metadata.environments,
       ...feature.metadata.related
@@ -2069,6 +2034,7 @@ function filterFeatures(
       const cases = group.cases.filter((scenario) =>
         [
           scenario.title,
+          scenario.identity?.id,
           scenario.description,
           group.title,
           group.description,

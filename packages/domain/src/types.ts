@@ -15,6 +15,12 @@ export type EvidenceKind = (typeof evidenceKinds)[number];
 
 export type AutomatedTestRunner = "vitest" | "playwright";
 
+export interface SpecIdentity {
+  id: string;
+  source: "explicit" | "legacy";
+  stable: boolean;
+}
+
 export interface SourceLocation {
   line?: number | undefined;
   column?: number | undefined;
@@ -26,6 +32,8 @@ export interface ParseIssue {
     | "frontmatter_schema"
     | "gherkin_invalid"
     | "gherkin_missing_feature"
+    | "identity_invalid"
+    | "identity_duplicate"
     | "filesystem_error";
   message: string;
   level: "warning" | "error";
@@ -35,7 +43,10 @@ export interface ParseIssue {
 }
 
 export interface FeatureMetadata {
+  id?: string | undefined;
   title?: string | undefined;
+  domain?: string | undefined;
+  lifecycle: "draft" | "active" | "deprecated" | "archived";
   environments: string[];
   tags: string[];
   priority?: Priority | undefined;
@@ -78,6 +89,7 @@ export interface ScenarioExamples {
 
 export interface ScenarioSpec {
   id: string;
+  identity: SpecIdentity;
   title: string;
   description: string;
   kind: "scenario" | "outline";
@@ -89,6 +101,7 @@ export interface ScenarioSpec {
 
 export interface ScenarioCaseSpec {
   id: string;
+  identity: SpecIdentity;
   scenarioId: string;
   title: string;
   description: string;
@@ -104,6 +117,7 @@ export interface ScenarioCaseSpec {
 
 export interface FeatureSpec {
   id: string;
+  identity: SpecIdentity;
   filePath: string;
   relativePath: string;
   title: string;

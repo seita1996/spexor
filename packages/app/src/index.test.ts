@@ -32,16 +32,14 @@ describe("@spexor/app", () => {
           new Response(
             JSON.stringify({
               projectId: "qa-console",
-              scenarioKey:
-                "specs/manual/login.feature::login-with-valid-credentials::1",
+              scenarioKey: "authentication.login.valid-credentials",
               items: [
                 {
                   version: 1,
                   eventId: "shared-1",
                   projectId: "qa-console",
-                  featureId: "specs/manual/login.feature",
-                  scenarioKey:
-                    "specs/manual/login.feature::login-with-valid-credentials::1",
+                  featureId: "authentication.login",
+                  scenarioKey: "authentication.login.valid-credentials",
                   scenarioTitle: "Login with valid credentials",
                   runId: "shared-run-1",
                   testerName: "shared@example.com",
@@ -83,7 +81,10 @@ describe("@spexor/app", () => {
     await fs.writeFile(
       path.join(tempRoot, "specs/manual/login.feature"),
       `---
+id: authentication.login
 title: Login
+domain: authentication
+lifecycle: active
 environments:
   - mac-chrome
 tags:
@@ -100,10 +101,12 @@ verification:
 
 Feature: User login
 
+  @spexor-id:authentication.login.valid-credentials
   Scenario: Login with valid credentials
     Given I open the login page
     Then I should see the dashboard
 
+  @spexor-id:authentication.login.invalid-credentials
   Scenario: Login with invalid credentials
     Given I open the login page
     Then I should see an authentication error
@@ -116,11 +119,16 @@ Feature: User login
     const list = await app.getSpecsList();
     expect(list).toHaveLength(1);
     expect(list[0]?.title).toBe("Login");
+    expect(list[0]?.featureId).toBe("authentication.login");
+    expect(list[0]?.identity.source).toBe("explicit");
 
     const firstFeature = list[0];
     expect(firstFeature).toBeDefined();
     const detail = await app.getFeatureDetail(firstFeature?.featureId ?? "");
     expect(detail?.scenarioGroups).toHaveLength(2);
+    expect(detail?.scenarioGroups[0]?.cases[0]?.id).toBe(
+      "authentication.login.valid-credentials"
+    );
     expect(detail?.verification.manualOnly).toBe(false);
     expect(detail?.verification.automated[0]?.runner).toBe("vitest");
 

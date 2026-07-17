@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expandFeatureCases } from "@spexor/domain";
-import { parseSpecText } from "./index";
+import { parseSpecText, validateProjectSpecIdentities } from "./index";
 
 describe("@spexor/parser", () => {
   const rootDir = "/workspace/demo";
@@ -98,6 +98,112 @@ Feature: Broken metadata
       manualOnly: true,
       automated: []
     });
+    expect(parsed.feature?.metadata.lifecycle).toBe("active");
+    expect(parsed.feature?.identity.source).toBe("legacy");
+    expect(parsed.feature?.identity.stable).toBe(false);
+    expect(parsed.feature?.scenarios[0]?.identity.source).toBe("legacy");
+  });
+
+  it("uses explicit identities for Japanese specifications and hides reserved tags", () => {
+    const parsed = parseSpecText(
+      `---
+id: authentication.login
+domain: authentication
+lifecycle: active
+productArea: customer-access
+---
+
+Feature: ログイン
+
+  @spexor-id:authentication.login.valid-credentials @smoke
+  Scenario: 正しい認証情報でログインする
+    Given 登録済みユーザーが存在する
+    Then ダッシュボードを表示する
+`,
+      filePath,
+      { rootDir }
+    );
+
+    expect(parsed.parseHealth).toBe("ok");
+    expect(parsed.feature?.identity).toEqual({
+      id: "authentication.login",
+      source: "explicit",
+      stable: true
+    });
+    expect(parsed.feature?.metadata.domain).toBe("authentication");
+    expect(parsed.feature?.metadata.extra).toEqual({
+      productArea: "customer-access"
+    });
+    expect(parsed.feature?.scenarios[0]?.identity).toEqual({
+      id: "authentication.login.valid-credentials",
+      source: "explicit",
+      stable: true
+    });
+    expect(parsed.feature?.scenarios[0]?.tags).toEqual(["smoke"]);
+    expect(
+      parsed.feature ? expandFeatureCases(parsed.feature)[0]?.id : null
+    ).toBe("authentication.login.valid-credentials");
+  });
+
+  it("falls back to legacy identity and reports invalid IDs", () => {
+    const parsed = parseSpecText(
+      `---
+id: Invalid/Feature
+---
+
+Feature: Invalid identities
+
+  @spexor-id:INVALID
+  Scenario: Invalid scenario identity
+    Given a specification exists
+`,
+      filePath,
+      { rootDir }
+    );
+
+    expect(parsed.parseHealth).toBe("error");
+    expect(parsed.feature?.identity.source).toBe("legacy");
+    expect(parsed.feature?.scenarios[0]?.identity.source).toBe("legacy");
+    expect(
+      parsed.issues.filter((issue) => issue.code === "identity_invalid")
+    ).toHaveLength(2);
+  });
+
+  it("reports duplicate explicit IDs across the project", () => {
+    const first = parseSpecText(
+      `---
+id: shared.feature
+---
+Feature: First
+  @spexor-id:shared.scenario
+  Scenario: First scenario
+    Given one
+`,
+      filePath,
+      { rootDir }
+    );
+    const second = parseSpecText(
+      `---
+id: shared.feature
+---
+Feature: Second
+  @spexor-id:shared.scenario
+  Scenario: Second scenario
+    Given two
+`,
+      path.join(rootDir, "specs/manual/auth/second.feature"),
+      { rootDir }
+    );
+
+    validateProjectSpecIdentities([first, second]);
+
+    expect(first.parseHealth).toBe("error");
+    expect(second.parseHealth).toBe("error");
+    expect(first.feature?.identity.source).toBe("legacy");
+    expect(second.feature?.scenarios[0]?.identity.source).toBe("legacy");
+    expect(
+      first.issues.some((issue) => issue.code === "identity_duplicate")
+    ).toBe(true);
   });
 
   it("keeps scenario ids aligned with expanded cases for multiple scenario titles", () => {

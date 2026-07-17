@@ -14,12 +14,14 @@ import {
   type FeatureVerification,
   type FeatureSpec,
   inferParseHealth,
+  isValidSpecIdentity,
   normalizePath,
   normalizeTags,
   type ParsedSpecFile,
   type ParseIssue,
   type ScenarioExamples,
   type ScenarioSpec,
+  type SpecIdentity,
   type SourceLocation,
   slugify,
   type StepSpec
@@ -29,7 +31,12 @@ import { z } from "zod";
 
 const frontmatterSchema = z
   .object({
+    id: z.string().optional(),
     title: z.string().min(1).optional(),
+    domain: z.string().min(1).optional(),
+    lifecycle: z
+      .enum(["draft", "active", "deprecated", "archived"])
+      .default("active"),
     environments: z.array(z.string()).default([]),
     browsers: z.array(z.string()).optional(),
     platforms: z.array(z.string()).optional(),
@@ -134,12 +141,82 @@ export function parseSpecText(
   };
 }
 
+export function validateProjectSpecIdentities(
+  parsedFiles: ParsedSpecFile[]
+): ParsedSpecFile[] {
+  const featureIds = new Map<string, ParsedSpecFile[]>();
+  const scenarioIds = new Map<
+    string,
+    Array<{ file: ParsedSpecFile; scenarioIndex: number }>
+  >();
+
+  for (const file of parsedFiles) {
+    if (!file.feature) {
+      continue;
+    }
+    if (file.feature.identity.source === "explicit") {
+      const matches = featureIds.get(file.feature.id) ?? [];
+      matches.push(file);
+      featureIds.set(file.feature.id, matches);
+    }
+    file.feature.scenarios.forEach((scenario, scenarioIndex) => {
+      if (scenario.identity.source !== "explicit") {
+        return;
+      }
+      const matches = scenarioIds.get(scenario.id) ?? [];
+      matches.push({ file, scenarioIndex });
+      scenarioIds.set(scenario.id, matches);
+    });
+  }
+
+  for (const [id, files] of featureIds) {
+    if (files.length < 2) {
+      continue;
+    }
+    for (const file of files) {
+      if (!file.feature) {
+        continue;
+      }
+      addIdentityIssue(file, `Duplicate Feature ID: ${id}`);
+      file.feature.id = file.relativePath;
+      file.feature.identity = legacyIdentity(file.relativePath);
+    }
+  }
+
+  for (const [id, matches] of scenarioIds) {
+    if (matches.length < 2) {
+      continue;
+    }
+    for (const { file, scenarioIndex } of matches) {
+      const scenario = file.feature?.scenarios[scenarioIndex];
+      if (!scenario) {
+        continue;
+      }
+      addIdentityIssue(file, `Duplicate Scenario ID: ${id}`, scenario.location);
+      const occurrence = getLegacyScenarioOccurrence(
+        file.feature?.scenarios ?? [],
+        scenarioIndex
+      );
+      const legacyId = createScenarioStableId(
+        file.relativePath,
+        scenario.title,
+        occurrence
+      );
+      scenario.id = legacyId;
+      scenario.identity = legacyIdentity(legacyId);
+    }
+  }
+
+  return parsedFiles;
+}
+
 function parseFrontmatter(
   text: string,
   filePath: string
 ): { content: string; metadata: FeatureMetadata; issues: ParseIssue[] } {
   const issues: ParseIssue[] = [];
   const fallbackMetadata: FeatureMetadata = {
+    lifecycle: "active",
     environments: [],
     tags: [],
     related: [],
@@ -187,7 +264,10 @@ function parseMetadataObject(
   issues: ParseIssue[]
 ): FeatureMetadata {
   type LooseFrontmatterShape = Record<string, unknown> & {
+    id?: unknown;
     title?: unknown;
+    domain?: unknown;
+    lifecycle?: unknown;
     environments?: unknown;
     browsers?: unknown;
     platforms?: unknown;
@@ -199,6 +279,7 @@ function parseMetadataObject(
   };
 
   const fallbackMetadata: FeatureMetadata = {
+    lifecycle: "active",
     environments: [],
     tags: [],
     related: [],
@@ -213,7 +294,10 @@ function parseMetadataObject(
   const parsed = frontmatterSchema.safeParse(rawData);
   if (parsed.success) {
     const {
+      id,
       title,
+      domain,
+      lifecycle,
       environments,
       browsers,
       platforms,
@@ -225,7 +309,10 @@ function parseMetadataObject(
       ...extra
     } = parsed.data;
     return {
+      id,
       title,
+      domain,
+      lifecycle,
       environments: normalizeEnvironments(environments, browsers, platforms),
       tags: normalizeTags(tags),
       priority,
@@ -248,7 +335,15 @@ function parseMetadataObject(
 
   const value = rawData as LooseFrontmatterShape;
   return {
+    id: typeof value.id === "string" ? value.id : undefined,
     title: typeof value.title === "string" ? value.title : undefined,
+    domain: typeof value.domain === "string" ? value.domain : undefined,
+    lifecycle:
+      value.lifecycle === "draft" ||
+      value.lifecycle === "deprecated" ||
+      value.lifecycle === "archived"
+        ? value.lifecycle
+        : "active",
     environments: normalizeEnvironments(
       filterStringArray(value.environments),
       filterStringArray(value.browsers),
@@ -275,6 +370,9 @@ function parseMetadataObject(
         ([key]) =>
           ![
             "title",
+            "id",
+            "domain",
+            "lifecycle",
             "environments",
             "browsers",
             "platforms",
@@ -423,12 +521,57 @@ function buildFeatureSpec(
         relativePath,
         scenarioNode.name,
         occurrence,
-        scenarioNode
+        scenarioNode,
+        issues
       );
     });
 
+  const featureIdentity = resolveFeatureIdentity(
+    metadata.id,
+    relativePath,
+    issues
+  );
+
+  const explicitScenarioIds = new Map<string, number[]>();
+  scenarios.forEach((scenario, index) => {
+    if (scenario.identity.source !== "explicit") {
+      return;
+    }
+    const indexes = explicitScenarioIds.get(scenario.id) ?? [];
+    indexes.push(index);
+    explicitScenarioIds.set(scenario.id, indexes);
+  });
+  for (const [id, indexes] of explicitScenarioIds) {
+    if (indexes.length < 2) {
+      continue;
+    }
+    for (const index of indexes) {
+      const scenario = scenarios[index];
+      if (!scenario) {
+        continue;
+      }
+      issues.push({
+        code: "identity_duplicate",
+        level: "error",
+        source: "gherkin",
+        path: relativePath,
+        message: `Duplicate Scenario ID: ${id}`,
+        location: scenario.location
+      });
+      const occurrence = getLegacyScenarioOccurrence(scenarios, index);
+      const legacyId = createScenarioStableId(
+        relativePath,
+        scenario.title,
+        occurrence
+      );
+      scenario.id = legacyId;
+      scenario.identity = legacyIdentity(legacyId);
+    }
+  }
+
   return {
-    id: relativePath,
+    id: featureIdentity.id,
+    identity: featureIdentity,
     filePath,
     relativePath,
     title: featureNode.name,
@@ -464,7 +607,8 @@ function buildScenarioSpec(
       text: string;
     }>;
     tags: ReadonlyArray<{ name: string }>;
-  }
+  },
+  issues: ParseIssue[]
 ): ScenarioSpec {
   const kind =
     scenarioNode.keyword.toLowerCase().includes("outline") ||
@@ -472,12 +616,23 @@ function buildScenarioSpec(
       ? "outline"
       : "scenario";
 
+  const legacyId = createScenarioStableId(relativePath, title, occurrenceIndex);
+  const rawTags = scenarioNode.tags.map((tag) => tag.name);
+  const identity = resolveScenarioIdentity(
+    rawTags,
+    legacyId,
+    relativePath,
+    toLocation(scenarioNode.location),
+    issues
+  );
+
   return {
-    id: createScenarioStableId(relativePath, title, occurrenceIndex),
+    id: identity.id,
+    identity,
     title,
     description: scenarioNode.description.trim(),
     kind,
-    tags: normalizeTags(scenarioNode.tags.map((tag) => tag.name)),
+    tags: normalizeTags(rawTags).filter((tag) => !tag.startsWith("spexor-id:")),
     steps: buildSteps(scenarioNode.steps),
     examples: buildExamples(scenarioNode.examples),
     location: toLocation(scenarioNode.location)
@@ -561,4 +716,99 @@ function toLocation(location?: {
     line: location.line,
     column: location.column
   };
+}
+
+function resolveFeatureIdentity(
+  explicitId: string | undefined,
+  legacyId: string,
+  issues: ParseIssue[]
+): SpecIdentity {
+  if (!explicitId) {
+    return legacyIdentity(legacyId);
+  }
+  if (isValidSpecIdentity(explicitId)) {
+    return { id: explicitId, source: "explicit", stable: true };
+  }
+  issues.push({
+    code: "identity_invalid",
+    level: "error",
+    source: "frontmatter",
+    path: legacyId,
+    message: `Invalid Feature ID: ${explicitId}`
+  });
+  return legacyIdentity(legacyId);
+}
+
+function resolveScenarioIdentity(
+  tags: string[],
+  legacyId: string,
+  relativePath: string,
+  location: SourceLocation | undefined,
+  issues: ParseIssue[]
+): SpecIdentity {
+  const identityTags = tags
+    .map((tag) => tag.trim().replace(/^@/, ""))
+    .filter((tag) => tag.startsWith("spexor-id:"));
+  if (identityTags.length === 0) {
+    return legacyIdentity(legacyId);
+  }
+  if (identityTags.length > 1) {
+    issues.push({
+      code: "identity_invalid",
+      level: "error",
+      source: "gherkin",
+      path: relativePath,
+      message: "A Scenario may declare only one @spexor-id tag.",
+      location
+    });
+    return legacyIdentity(legacyId);
+  }
+
+  const explicitId = identityTags[0]?.slice("spexor-id:".length) ?? "";
+  if (!isValidSpecIdentity(explicitId)) {
+    issues.push({
+      code: "identity_invalid",
+      level: "error",
+      source: "gherkin",
+      path: relativePath,
+      message: `Invalid Scenario ID: ${explicitId || "(empty)"}`,
+      location
+    });
+    return legacyIdentity(legacyId);
+  }
+  return { id: explicitId, source: "explicit", stable: true };
+}
+
+function legacyIdentity(id: string): SpecIdentity {
+  return { id, source: "legacy", stable: false };
+}
+
+function getLegacyScenarioOccurrence(
+  scenarios: ScenarioSpec[],
+  scenarioIndex: number
+): number {
+  const scenario = scenarios[scenarioIndex];
+  if (!scenario) {
+    return 1;
+  }
+  const normalizedTitle = slugify(scenario.title);
+  return scenarios
+    .slice(0, scenarioIndex + 1)
+    .filter((candidate) => slugify(candidate.title) === normalizedTitle).length;
+}
+
+function addIdentityIssue(
+  file: ParsedSpecFile,
+  message: string,
+  location?: SourceLocation
+): void {
+  file.issues.push({
+    code: "identity_duplicate",
+    level: "error",
+    source: "gherkin",
+    path: file.relativePath,
+    message,
+    location
+  });
+  file.parseHealth = inferParseHealth(file.issues.length, true);
 }

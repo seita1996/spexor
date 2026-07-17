@@ -1,5 +1,8 @@
 ---
+id: commerce.shopping-cart
 title: Shopping cart
+domain: commerce
+lifecycle: active
 environments:
   - mac-chrome
   - mac-safari
@@ -15,16 +18,19 @@ related:
 
 Feature: Shopping cart
 
+  @spexor-id:commerce.shopping-cart.add
   Scenario: Add an item to the cart
     Given I am viewing a product detail page
     When I add the product to the cart
     Then the cart count should increase by one
 
+  @spexor-id:commerce.shopping-cart.remove
   Scenario: Remove an item from the cart
     Given I already have two items in the cart
     When I remove one item
     Then the removed item should no longer appear in the cart
 
+  @spexor-id:commerce.shopping-cart.shipping-total
   Scenario Outline: Cart totals stay consistent across shipping methods
     Given I have one in-stock item in the cart
     When I choose the <shipping_method> shipping method

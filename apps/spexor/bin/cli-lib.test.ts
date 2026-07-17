@@ -249,6 +249,9 @@ describe("spexor cli helpers", () => {
     expect(doctor.checks.some((check) => check.id === "config-parse")).toBe(
       true
     );
+    expect(
+      doctor.checks.find((check) => check.id === "spec-identity")?.status
+    ).toBe("ok");
 
     const scan = await runScan({ projectRoot });
     expect(scan.featureCount).toBe(1);
@@ -267,6 +270,8 @@ describe("spexor cli helpers", () => {
     const status = await getProjectStatus({ projectRoot });
     expect(status.featureCount).toBe(1);
     expect(status.recordedRunCount).toBe(1);
+    expect(status.identity.features.explicit).toBe(1);
+    expect(status.identity.scenarios.explicit).toBe(1);
     expect(status.sharedResultsEnabled).toBe(true);
 
     const exported = await exportResults({ projectRoot });

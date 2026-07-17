@@ -38,8 +38,8 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 
 ## Scenario identity
 
-- Feature ID: repo-relative file path
-- Scenario ID: `file path + normalized title + occurrence index`
-- Outline example case ID: scenario ID plus example index
+- Feature ID: explicit frontmatter `id`
+- Scenario ID: explicit `@spexor-id:` reserved tag
+- Outline example case ID: Scenario ID plus example index
 
-This keeps the MVP explicit. Renaming a scenario creates a new current ID; old local history remains in SQLite.
+Explicit logical IDs are the SQLite primary keys. File paths remain source locations. Missing, invalid, or duplicate IDs use a visibly unstable legacy fallback so the catalog stays readable; see ADR 0005.

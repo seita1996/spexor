@@ -1,10 +1,44 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import type { ParsedSpecFile } from "@spexor/domain";
 import { initDatabase } from "./index";
 
 describe("@spexor/db", () => {
+  it("rebuilds pre-identity databases at schema version 2", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-db-v1-"));
+    const dbPath = path.join(tempRoot, "spexor.db");
+    const legacy = new DatabaseSync(dbPath);
+    legacy.exec(
+      "CREATE TABLE spec_files (relative_path TEXT PRIMARY KEY); INSERT INTO spec_files VALUES ('legacy.feature');"
+    );
+    legacy.close();
+
+    const database = initDatabase(dbPath);
+    expect(database.getSpecFiles()).toEqual([]);
+    database.upsertSharedSyncState({
+      projectId: "migration-check",
+      lastSyncAt: null,
+      lastSyncError: null,
+      lastAttemptAt: null
+    });
+    database.close();
+
+    const migrated = new DatabaseSync(dbPath);
+    const version = migrated.prepare("PRAGMA user_version").get() as {
+      user_version: number;
+    };
+    expect(version.user_version).toBe(2);
+    migrated.close();
+
+    const reopened = initDatabase(dbPath);
+    expect(reopened.getSharedSyncState("migration-check")?.projectId).toBe(
+      "migration-check"
+    );
+    reopened.close();
+  });
+
   it("initializes SQLite and persists scenario run history", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-db-"));
     const dbPath = path.join(tempRoot, ".spexor", "spexor.db");
@@ -17,13 +51,20 @@ describe("@spexor/db", () => {
       issues: [],
       parseHealth: "ok",
       feature: {
-        id: "specs/manual/login.feature",
+        id: "authentication.login",
+        identity: {
+          id: "authentication.login",
+          source: "explicit",
+          stable: true
+        },
         filePath: path.join(tempRoot, "specs/manual/login.feature"),
         relativePath: "specs/manual/login.feature",
         title: "User login",
         description: "",
         metadata: {
+          id: "authentication.login",
           title: "Login",
+          lifecycle: "active",
           environments: ["mac-chrome"],
           tags: ["auth"],
           priority: "high",
@@ -38,7 +79,12 @@ describe("@spexor/db", () => {
         background: [],
         scenarios: [
           {
-            id: "specs/manual/login.feature::login-with-valid-credentials::1",
+            id: "authentication.login.valid-credentials",
+            identity: {
+              id: "authentication.login.valid-credentials",
+              source: "explicit",
+              stable: true
+            },
             title: "Login with valid credentials",
             description: "",
             kind: "scenario",
@@ -65,7 +111,9 @@ describe("@spexor/db", () => {
     expect(overview).toHaveLength(1);
     expect(overview[0]?.scenarioCount).toBe(1);
 
-    const scenarios = database.getFeatureScenarios(parsed.relativePath);
+    const scenarios = database.getFeatureScenarios(
+      parsed.feature?.id ?? parsed.relativePath
+    );
     expect(scenarios).toHaveLength(1);
     const [scenario] = scenarios;
     if (!scenario) {
@@ -74,7 +122,7 @@ describe("@spexor/db", () => {
 
     const saved = database.recordScenarioRun({
       scenarioKey: scenario.scenarioKey,
-      featureKey: parsed.relativePath,
+      featureKey: parsed.feature?.id ?? "",
       testerName: "qa@example.com",
       status: "passed",
       notes: "happy path",
@@ -101,7 +149,7 @@ describe("@spexor/db", () => {
       items: [
         {
           scenarioKey: scenario.scenarioKey,
-          featureKey: parsed.relativePath,
+          featureKey: parsed.feature?.id ?? "",
           featureTitle: "Login",
           scenarioTitle: "Login with valid credentials",
           sourceLine: 10,
@@ -135,6 +183,24 @@ describe("@spexor/db", () => {
     expect(database.getSharedSyncState("qa-console")?.lastSyncAt).toBe(
       "2026-03-31T00:00:00.000Z"
     );
+
+    if (!parsed.feature) {
+      throw new Error("Expected parsed feature.");
+    }
+    parsed.relativePath = "specs/manual/auth/login.feature";
+    parsed.filePath = path.join(tempRoot, parsed.relativePath);
+    parsed.feature.relativePath = parsed.relativePath;
+    parsed.feature.filePath = parsed.filePath;
+    parsed.feature.title = "Renamed user login";
+    parsed.feature.scenarios[0]!.title = "Renamed login scenario";
+    database.saveParsedSpecs([parsed]);
+
+    expect(database.getFeature("authentication.login")?.specRelativePath).toBe(
+      "specs/manual/auth/login.feature"
+    );
+    expect(
+      database.getScenarioRunHistory("authentication.login.valid-credentials")
+    ).toHaveLength(1);
 
     database.close();
   });

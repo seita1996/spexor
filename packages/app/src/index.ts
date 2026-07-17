@@ -11,11 +11,16 @@ import {
   type Priority,
   type RunStatus,
   type ScenarioCaseSpec,
+  type SpecIdentity,
   type StatusSummary,
   type StepSpec,
   summarizeLatestStatuses
 } from "@spexor/domain";
-import { parseSpecFile, scanSpecFiles } from "@spexor/parser";
+import {
+  parseSpecFile,
+  scanSpecFiles,
+  validateProjectSpecIdentities
+} from "@spexor/parser";
 import {
   buildSharedRunEvent,
   defaultProjectId,
@@ -28,6 +33,7 @@ import chokidar, { type FSWatcher } from "chokidar";
 
 export interface SpecsListItemDto {
   featureId: string;
+  identity: SpecIdentity;
   title: string;
   featureTitle?: string | undefined;
   filePath: string;
@@ -61,6 +67,7 @@ export interface ScenarioGroupDto {
 
 export interface FeatureDetailDto {
   featureId: string;
+  identity: SpecIdentity;
   title: string;
   featureTitle?: string | undefined;
   filePath: string;
@@ -238,9 +245,11 @@ export async function createSpexorApp(
     processedCount: number;
   }> => {
     const specFiles = await scanSpecFiles(config.specDirAbs);
-    const parsedFiles = await Promise.all(
-      specFiles.map((filePath) =>
-        parseSpecFile(filePath, { rootDir: config.rootDir })
+    const parsedFiles = validateProjectSpecIdentities(
+      await Promise.all(
+        specFiles.map((filePath) =>
+          parseSpecFile(filePath, { rootDir: config.rootDir })
+        )
       )
     );
     return database.saveParsedSpecs(parsedFiles);
@@ -280,10 +289,17 @@ export async function createSpexorApp(
     return rows.map((row) => {
       const feature = database.getFeature(row.relativePath);
       const latestResults = feature
-        ? database.getFeatureLatestResults(row.relativePath)
+        ? database.getFeatureLatestResults(feature.featureKey)
         : [];
       return {
-        featureId: row.relativePath,
+        featureId: feature?.featureKey ?? row.relativePath,
+        identity: feature
+          ? {
+              id: feature.featureKey,
+              source: feature.identitySource,
+              stable: feature.identitySource === "explicit"
+            }
+          : { id: row.relativePath, source: "legacy", stable: false },
         title: feature?.displayTitle ?? row.displayTitle,
         featureTitle: feature?.featureTitle,
         filePath: row.relativePath,
@@ -454,15 +470,17 @@ export async function createSpexorApp(
   const getFeatureDetail = async (
     featureId: string
   ): Promise<FeatureDetailDto | null> => {
-    const specFile = database.getSpecFile(featureId);
+    const feature = database.getFeature(featureId);
+    const specFile = database.getSpecFile(
+      feature?.specRelativePath ?? featureId
+    );
     if (!specFile) {
       return null;
     }
-
-    const feature = database.getFeature(featureId);
     if (!feature) {
       return {
         featureId,
+        identity: { id: featureId, source: "legacy", stable: false },
         title: specFile.displayTitle,
         filePath: specFile.relativePath,
         parseHealth: specFile.parseHealth as ParseHealth,
@@ -479,7 +497,7 @@ export async function createSpexorApp(
 
     const latestResultMap = new Map(
       database
-        .getFeatureLatestResults(featureId)
+        .getFeatureLatestResults(feature.featureKey)
         .map((result) => [result.scenarioKey, result] as const)
     );
     const metadata = parseJson<FeatureMetadata>(
@@ -489,7 +507,7 @@ export async function createSpexorApp(
     const soleEnvironment =
       metadata.environments.length === 1 ? metadata.environments[0] : null;
     const latestEnvironmentResults = [
-      ...database.getFeatureLatestResultsByEnvironment(featureId),
+      ...database.getFeatureLatestResultsByEnvironment(feature.featureKey),
       ...[...latestResultMap.values()]
         .filter((result) => !result.environment && soleEnvironment)
         .map((result) => ({
@@ -499,7 +517,7 @@ export async function createSpexorApp(
     ];
 
     const groupedScenarios = new Map<string, ScenarioGroupDto>();
-    const scenarios = database.getFeatureScenarios(featureId);
+    const scenarios = database.getFeatureScenarios(feature.featureKey);
 
     for (const scenario of scenarios) {
       const group = groupedScenarios.get(scenario.groupKey) ?? {
@@ -514,6 +532,11 @@ export async function createSpexorApp(
       const latestResult = latestResultMap.get(scenario.scenarioKey) ?? null;
       group.cases.push({
         id: scenario.scenarioKey,
+        identity: {
+          id: scenario.groupKey,
+          source: scenario.identitySource,
+          stable: scenario.identitySource === "explicit"
+        },
         scenarioId: scenario.groupKey,
         title: scenario.title,
         description: scenario.description,
@@ -546,7 +569,12 @@ export async function createSpexorApp(
     }));
 
     return {
-      featureId,
+      featureId: feature.featureKey,
+      identity: {
+        id: feature.featureKey,
+        source: feature.identitySource,
+        stable: feature.identitySource === "explicit"
+      },
       title: feature.displayTitle,
       featureTitle: feature.featureTitle,
       filePath: feature.specRelativePath,
@@ -786,6 +814,7 @@ export async function createSpexorApp(
 
 function emptyMetadata(): FeatureMetadata {
   return {
+    lifecycle: "active",
     environments: [],
     tags: [],
     related: [],

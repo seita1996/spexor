@@ -26,6 +26,10 @@ test.describe("Spexor core flow", () => {
     await expect(
       page.getByText("shows automated coverage for a linked feature")
     ).toBeVisible();
+    await expect(
+      page.getByText("Scenario ID: spexor.automation-coverage.inspect")
+    ).toBeVisible();
+    await expect(page.getByText("Implementation checkpoints")).toHaveCount(0);
   });
 
   test("completes a manual-only feature session and returns to the feature", async ({
@@ -46,15 +50,15 @@ test.describe("Spexor core flow", () => {
     ).toBeVisible();
     await expect(page.getByText("Manual only")).toBeVisible();
 
-    await page.getByRole("button", { name: "Start feature session" }).click();
+    await page.getByRole("button", { name: "Start feature run" }).click();
 
-    await expect(page.getByText("Session Explorer")).toBeVisible();
+    await expect(page.getByText("Run Explorer")).toBeVisible();
     await expect(
       page
         .getByLabel("Workspace breadcrumb")
-        .getByText(/Feature session: Manual history flow/i)
+        .getByText(/Feature run: Manual history flow/i)
     ).toBeVisible();
-    await expect(page.getByText("Session execution")).toBeVisible();
+    await expect(page.getByText("Run execution")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Back to workspace" })
     ).toBeVisible();
@@ -91,9 +95,7 @@ test.describe("Spexor core flow", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Back to workspace" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Spec Explorer" })
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Explore" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Manual execution" })
     ).toBeVisible();

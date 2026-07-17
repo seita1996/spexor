@@ -118,6 +118,26 @@ async function doctorProject(input) {
         ? `${config.sharedResults.baseUrl} (${config.sharedResults.projectId})`
         : "sharedResults is not configured"
     });
+
+    if (await pathExists(config.specDirAbs)) {
+      const app = await createSpexorApp({ rootDir: projectRoot });
+      try {
+        const catalog = await app.getSpecCatalog();
+        const identity = summarizeIdentity(catalog);
+        checks.push({
+          id: "spec-identity",
+          status:
+            identity.invalid > 0
+              ? "error"
+              : identity.legacy > 0
+                ? "warn"
+                : "ok",
+          message: `features(explicit=${identity.features.explicit}, legacy=${identity.features.legacy}) scenarios(explicit=${identity.scenarios.explicit}, legacy=${identity.scenarios.legacy}) invalid=${identity.invalid}`
+        });
+      } finally {
+        await app.close();
+      }
+    }
   } catch (error) {
     checks.push({
       id: "config-parse",
@@ -154,6 +174,7 @@ async function getProjectStatus(input) {
 
   try {
     const items = await app.getSpecsList();
+    const catalog = await app.getSpecCatalog();
     const health = app.getHealth();
     const exported = await app.exportRunResultsNdjson();
 
@@ -170,12 +191,45 @@ async function getProjectStatus(input) {
         error: items.filter((item) => item.parseHealth === "error").length
       },
       recordedRunCount: exported.itemCount,
+      identity: summarizeIdentity(catalog),
       sharedResultsEnabled: Boolean(health.config.sharedResults),
       sharedResultsProjectId: health.config.sharedResults?.projectId
     };
   } finally {
     await app.close();
   }
+}
+
+function summarizeIdentity(catalog) {
+  const scenarioIdentities = catalog.features.flatMap((feature) =>
+    feature.scenarioGroups.flatMap((group) =>
+      group.cases.map((scenario) => scenario.identity)
+    )
+  );
+  return {
+    features: countIdentitySources(catalog.items.map((item) => item.identity)),
+    scenarios: countIdentitySources(scenarioIdentities),
+    legacy:
+      catalog.items.filter((item) => item.identity.source === "legacy").length +
+      scenarioIdentities.filter((identity) => identity.source === "legacy")
+        .length,
+    invalid: catalog.items.reduce(
+      (total, item) =>
+        total +
+        item.issues.filter((issue) =>
+          ["identity_invalid", "identity_duplicate"].includes(issue.code)
+        ).length,
+      0
+    )
+  };
+}
+
+function countIdentitySources(identities) {
+  return {
+    explicit: identities.filter((identity) => identity.source === "explicit")
+      .length,
+    legacy: identities.filter((identity) => identity.source === "legacy").length
+  };
 }
 
 async function exportProjectResults(input) {

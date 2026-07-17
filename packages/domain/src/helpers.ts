@@ -56,6 +56,21 @@ export function createScenarioStableId(
   return exampleIndex === undefined ? base : `${base}::example-${exampleIndex}`;
 }
 
+export const specIdentityPattern = /^[a-z0-9][a-z0-9._-]{2,127}$/;
+
+export function isValidSpecIdentity(value: string): boolean {
+  return specIdentityPattern.test(value);
+}
+
+export function createScenarioCaseId(
+  scenarioId: string,
+  exampleIndex?: number
+): string {
+  return exampleIndex === undefined
+    ? scenarioId
+    : `${scenarioId}::example-${exampleIndex}`;
+}
+
 export function interpolateTemplate(
   text: string,
   values: Record<string, string>
@@ -92,6 +107,7 @@ export function expandScenarioCases(
     return [
       {
         id: scenario.id,
+        identity: scenario.identity,
         scenarioId: scenario.id,
         title: scenario.title,
         description: scenario.description,
@@ -110,7 +126,8 @@ export function expandScenarioCases(
     for (const row of examples.rows) {
       exampleOffset += 1;
       cases.push({
-        id: createScenarioStableId("", scenario.title, 1, exampleOffset),
+        id: createScenarioCaseId(scenario.id, exampleOffset),
+        identity: scenario.identity,
         scenarioId: scenario.id,
         title: interpolateTemplate(scenario.title, row.values),
         description: scenario.description,
@@ -134,22 +151,14 @@ export function expandScenarioCases(
 
 export function expandFeatureCases(feature: FeatureSpec): ScenarioCaseSpec[] {
   const cases: ScenarioCaseSpec[] = [];
-  const occurrenceMap = new Map<string, number>();
 
   for (const scenario of feature.scenarios) {
-    const normalizedTitle = slugify(scenario.title);
-    const occurrence = (occurrenceMap.get(normalizedTitle) ?? 0) + 1;
-    occurrenceMap.set(normalizedTitle, occurrence);
-
-    const baseId = createScenarioStableId(
-      feature.relativePath,
-      scenario.title,
-      occurrence
-    );
+    const baseId = scenario.id;
 
     if (scenario.kind === "scenario") {
       cases.push({
         id: baseId,
+        identity: scenario.identity,
         scenarioId: baseId,
         title: scenario.title,
         description: scenario.description,
@@ -166,12 +175,8 @@ export function expandFeatureCases(feature: FeatureSpec): ScenarioCaseSpec[] {
       for (const row of examples.rows) {
         exampleOffset += 1;
         cases.push({
-          id: createScenarioStableId(
-            feature.relativePath,
-            scenario.title,
-            occurrence,
-            exampleOffset
-          ),
+          id: createScenarioCaseId(baseId, exampleOffset),
+          identity: scenario.identity,
           scenarioId: baseId,
           title: interpolateTemplate(scenario.title, row.values),
           description: scenario.description,

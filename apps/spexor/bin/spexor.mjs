@@ -198,6 +198,9 @@ async function handleStatusCommand() {
   );
   console.log(`recorded runs: ${result.recordedRunCount}`);
   console.log(
+    `identities: features(explicit=${result.identity.features.explicit} legacy=${result.identity.features.legacy}) scenarios(explicit=${result.identity.scenarios.explicit} legacy=${result.identity.scenarios.legacy}) invalid=${result.identity.invalid}`
+  );
+  console.log(
     `shared results: ${
       result.sharedResultsEnabled
         ? `enabled (${result.sharedResultsProjectId})`
