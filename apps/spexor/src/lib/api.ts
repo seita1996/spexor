@@ -9,7 +9,8 @@ import type {
   SharedSyncResultDto,
   SharedSyncStatusDto,
   SpecCatalogDto,
-  SpecsListItemDto
+  SpecsListItemDto,
+  VerificationRunReport
 } from "@spexor/app";
 
 async function fetchJson<T>(
@@ -67,11 +68,11 @@ export function syncSpecs() {
 }
 
 export function getExecutionSessions() {
-  return fetchJson<ExecutionSessionListItemDto[]>("/api/sessions");
+  return fetchJson<ExecutionSessionListItemDto[]>("/api/runs");
 }
 
 export function createExecutionSession(payload: CreateExecutionSessionInput) {
-  return fetchJson<ExecutionSessionDetailDto>("/api/sessions", {
+  return fetchJson<ExecutionSessionDetailDto>("/api/runs", {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -79,7 +80,20 @@ export function createExecutionSession(payload: CreateExecutionSessionInput) {
 
 export function getExecutionSession(sessionId: string) {
   return fetchJson<ExecutionSessionDetailDto>(
-    `/api/sessions/${encodeURIComponent(sessionId)}`
+    `/api/runs/${encodeURIComponent(sessionId)}`
+  );
+}
+
+export function retryExecutionSession(sessionId: string) {
+  return fetchJson<ExecutionSessionDetailDto>(
+    `/api/runs/${encodeURIComponent(sessionId)}/retry`,
+    { method: "POST" }
+  );
+}
+
+export function getVerificationRunReport(sessionId: string) {
+  return fetchJson<VerificationRunReport>(
+    `/api/runs/${encodeURIComponent(sessionId)}/report`
   );
 }
 
@@ -124,7 +138,7 @@ export function saveSessionScenarioRun(
   payload: RecordScenarioResultInput
 ) {
   return fetchJson<LatestScenarioResult>(
-    `/api/sessions/${encodeURIComponent(sessionId)}/scenarios/${encodeURIComponent(scenarioId)}/results`,
+    `/api/runs/${encodeURIComponent(sessionId)}/scenarios/${encodeURIComponent(scenarioId)}/results`,
     {
       method: "POST",
       body: JSON.stringify(payload)

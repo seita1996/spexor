@@ -31,6 +31,11 @@ import {
   stringifySharedRunEventsNdjson,
   type SharedRunEvent
 } from "@spexor/results";
+import {
+  formatVerificationRunReport,
+  type RunReportFormat,
+  type VerificationRunReport
+} from "@spexor/reporting";
 import chokidar, { type FSWatcher } from "chokidar";
 
 export interface SpecsListItemDto {
@@ -117,6 +122,14 @@ export interface RunResultsExportDto {
   ndjson: string;
 }
 
+export interface VerificationRunExportDto {
+  format: RunReportFormat;
+  contentType: string;
+  filename: string;
+  content: string;
+  report: VerificationRunReport;
+}
+
 export interface SharedSyncStatusDto {
   enabled: boolean;
   baseUrl?: string | undefined;
@@ -144,16 +157,22 @@ export interface ExecutionSessionFilters {
   tag: string;
   environment: string;
   priority: Priority | "";
+  domain?: string | undefined;
+  lifecycle?: string | undefined;
+  identitySource?: SpecIdentity["source"] | "" | undefined;
+  latestStatus?: RunStatus | "not-run" | "" | undefined;
 }
 
 export interface CreateExecutionSessionInput {
   name?: string | undefined;
+  baseRunId?: string | null | undefined;
   filters: ExecutionSessionFilters;
   scenarioIds?: string[] | undefined;
 }
 
 export interface ExecutionSessionListItemDto {
   id: string;
+  baseRunId: string | null;
   name: string;
   status: "active" | "completed";
   createdAt: string;
@@ -220,6 +239,14 @@ export interface SpexorApp {
   getExecutionSession(
     sessionId: string
   ): Promise<ExecutionSessionDetailDto | null>;
+  retryExecutionSession(sessionId: string): Promise<ExecutionSessionDetailDto>;
+  getVerificationRunReport(
+    sessionId: string
+  ): Promise<VerificationRunReport | null>;
+  exportVerificationRun(
+    sessionId: string,
+    format: RunReportFormat
+  ): Promise<VerificationRunExportDto>;
   recordScenarioResult(
     scenarioId: string,
     input: RecordScenarioResultInput
@@ -330,17 +357,6 @@ export async function createSpexorApp(
     }
 
     const items = database.getExecutionSessionItems(sessionId);
-    const latestResults = new Map<string, LatestScenarioResult>();
-
-    for (const scenarioKey of items
-      .map((item) => item.scenarioKey)
-      .filter((value, index, array) => array.indexOf(value) === index)) {
-      const [latestResult] = database.getScenarioRunHistory(scenarioKey, 1);
-      if (latestResult) {
-        latestResults.set(scenarioKey, latestResult);
-      }
-    }
-
     const sessionItems = items.map((item) => {
       return {
         scenarioId: item.scenarioKey,
@@ -352,7 +368,9 @@ export async function createSpexorApp(
         steps: parseJson<StepSpec[]>(item.stepsSnapshotJson, []),
         environments: parseJson<string[]>(item.environmentsSnapshotJson, []),
         specHash: item.specHash,
-        latestResult: latestResults.get(item.scenarioKey) ?? null,
+        latestResult: item.latestRunResultId
+          ? database.getRunResult(item.latestRunResultId)
+          : null,
         resolvedStatus: item.resolvedStatus,
         isCurrentSpecAvailable: item.isCurrentSpecAvailable,
         isStale: item.isStale
@@ -363,6 +381,7 @@ export async function createSpexorApp(
 
     return {
       id: session.id,
+      baseRunId: session.baseRunId,
       name: session.name,
       status: session.status,
       createdAt: session.createdAt,
@@ -380,6 +399,13 @@ export async function createSpexorApp(
       }),
       items: sessionItems
     };
+  };
+
+  const getVerificationRunReport = async (
+    sessionId: string
+  ): Promise<VerificationRunReport | null> => {
+    const session = await getExecutionSessionDetail(sessionId);
+    return session ? buildVerificationRunReport(session) : null;
   };
 
   const recordScenarioResultInternal = async (
@@ -417,6 +443,75 @@ export async function createSpexorApp(
       notes: input.notes?.trim() ?? "",
       attachments: attachmentRefs
     });
+  };
+
+  const createExecutionSessionInternal = async (
+    input: CreateExecutionSessionInput
+  ): Promise<ExecutionSessionDetailDto> => {
+    const selectedScenarioIds = new Set(input.scenarioIds ?? []);
+    const specs = await getSpecsList();
+    const matchingSpecs =
+      selectedScenarioIds.size > 0
+        ? specs
+        : specs.filter((item) => matchesSpecsFilters(item, input.filters));
+
+    const items = matchingSpecs.flatMap((spec) => {
+      const feature = database.getFeature(spec.featureId);
+      const background = feature
+        ? parseJson<StepSpec[]>(feature.backgroundJson, [])
+        : [];
+
+      return database.getFeatureScenarios(spec.featureId).map((scenario) => ({
+        scenarioKey: scenario.scenarioKey,
+        featureKey: scenario.featureKey,
+        featureTitle: spec.title,
+        scenarioTitle: scenario.title,
+        stepsSnapshot: [
+          ...background,
+          ...parseJson<StepSpec[]>(scenario.stepsJson, [])
+        ],
+        environmentsSnapshot: spec.metadata.environments,
+        specHash: scenario.specHash,
+        sourceLine: scenario.sourceLine,
+        exampleIndex: scenario.exampleIndex,
+        sortOrder: scenario.sortOrder
+      }));
+    });
+
+    const filteredItems =
+      selectedScenarioIds.size > 0
+        ? items.filter((item) => selectedScenarioIds.has(item.scenarioKey))
+        : items;
+
+    const sortedItems = filteredItems
+      .sort(compareSessionItems)
+      .map((item, index) => ({
+        ...item,
+        sortOrder: index + 1
+      }));
+
+    if (sortedItems.length === 0) {
+      throw new Error("No scenarios matched the current filters.");
+    }
+
+    const createdAt = new Date();
+    const gitContext = await captureGitContext({ cwd: config.rootDir });
+    const session = database.createExecutionSession({
+      name:
+        input.name?.trim() ||
+        buildExecutionSessionName(createdAt, input.filters),
+      baseRunId: input.baseRunId,
+      filtersJson: JSON.stringify(input.filters),
+      gitContext,
+      items: sortedItems
+    });
+
+    const detail = await getExecutionSessionDetail(session.id);
+    if (!detail) {
+      throw new Error(`Failed to load execution Run: ${session.id}`);
+    }
+
+    return detail;
   };
 
   const getSharedSyncStatus = async (): Promise<SharedSyncStatusDto> => {
@@ -707,70 +802,7 @@ export async function createSpexorApp(
       }
     },
     recordScenarioResult: recordScenarioResultInternal,
-    async createExecutionSession(input) {
-      const selectedScenarioIds = new Set(input.scenarioIds ?? []);
-      const specs = await getSpecsList();
-      const matchingSpecs = specs.filter((item) =>
-        matchesSpecsFilters(item, input.filters)
-      );
-
-      const items = matchingSpecs.flatMap((spec) => {
-        const feature = database.getFeature(spec.featureId);
-        const background = feature
-          ? parseJson<StepSpec[]>(feature.backgroundJson, [])
-          : [];
-
-        return database.getFeatureScenarios(spec.featureId).map((scenario) => ({
-          scenarioKey: scenario.scenarioKey,
-          featureKey: scenario.featureKey,
-          featureTitle: spec.title,
-          scenarioTitle: scenario.title,
-          stepsSnapshot: [
-            ...background,
-            ...parseJson<StepSpec[]>(scenario.stepsJson, [])
-          ],
-          environmentsSnapshot: spec.metadata.environments,
-          specHash: scenario.specHash,
-          sourceLine: scenario.sourceLine,
-          exampleIndex: scenario.exampleIndex,
-          sortOrder: scenario.sortOrder
-        }));
-      });
-
-      const filteredItems =
-        selectedScenarioIds.size > 0
-          ? items.filter((item) => selectedScenarioIds.has(item.scenarioKey))
-          : items;
-
-      const sortedItems = filteredItems
-        .sort(compareSessionItems)
-        .map((item, index) => ({
-          ...item,
-          sortOrder: index + 1
-        }));
-
-      if (sortedItems.length === 0) {
-        throw new Error("No scenarios matched the current filters.");
-      }
-
-      const createdAt = new Date();
-      const gitContext = await captureGitContext({ cwd: config.rootDir });
-      const session = database.createExecutionSession({
-        name:
-          input.name?.trim() ||
-          buildExecutionSessionName(createdAt, input.filters),
-        filtersJson: JSON.stringify(input.filters),
-        gitContext,
-        items: sortedItems
-      });
-
-      const detail = await getExecutionSessionDetail(session.id);
-      if (!detail) {
-        throw new Error(`Failed to load execution session: ${session.id}`);
-      }
-
-      return detail;
-    },
+    createExecutionSession: createExecutionSessionInternal,
     async getExecutionSessions() {
       const sessions = database.getExecutionSessions();
       const itemGroups = new Map(
@@ -782,6 +814,7 @@ export async function createSpexorApp(
 
       return sessions.map((session) => ({
         id: session.id,
+        baseRunId: session.baseRunId,
         name: session.name,
         status: session.status,
         createdAt: session.createdAt,
@@ -798,7 +831,67 @@ export async function createSpexorApp(
       }));
     },
     getExecutionSession: getExecutionSessionDetail,
+    getVerificationRunReport,
+    async exportVerificationRun(sessionId, format) {
+      const report = await getVerificationRunReport(sessionId);
+      if (!report) {
+        throw new Error(`Verification Run not found: ${sessionId}`);
+      }
+      const extension =
+        format === "markdown" ? "md" : format === "junit" ? "xml" : "json";
+      return {
+        format,
+        contentType:
+          format === "markdown"
+            ? "text/markdown; charset=utf-8"
+            : format === "junit"
+              ? "application/xml; charset=utf-8"
+              : "application/json; charset=utf-8",
+        filename: `spexor-run-${sessionId}.${extension}`,
+        content: formatVerificationRunReport(report, format),
+        report
+      };
+    },
+    async retryExecutionSession(sessionId) {
+      const source = await getExecutionSessionDetail(sessionId);
+      if (!source) {
+        throw new Error(`Verification Run not found: ${sessionId}`);
+      }
+      if (source.status !== "completed") {
+        throw new Error("Only completed Runs can be retried.");
+      }
+      const scenarioIds = source.items
+        .filter(
+          (item) =>
+            item.resolvedStatus === "failed" ||
+            item.resolvedStatus === "blocked"
+        )
+        .map((item) => item.scenarioId);
+      if (scenarioIds.length === 0) {
+        throw new Error(
+          "This Run has no failed or blocked scenarios to retry."
+        );
+      }
+      return createExecutionSessionInternal({
+        name: `Retry: ${source.name}`,
+        baseRunId: source.id,
+        filters: source.filters,
+        scenarioIds
+      });
+    },
     async recordSessionScenarioResult(sessionId, scenarioId, input) {
+      const session = database.getExecutionSession(sessionId);
+      if (!session || session.status !== "active") {
+        throw new Error(
+          `Verification Run is completed or missing: ${sessionId}`
+        );
+      }
+      const item = database
+        .getExecutionSessionItems(sessionId)
+        .find((candidate) => candidate.scenarioKey === scenarioId);
+      if (!item) {
+        throw new Error(`Verification Run item not found: ${scenarioId}`);
+      }
       const result = await recordScenarioResultInternal(scenarioId, input);
       database.linkSessionScenarioResult(sessionId, scenarioId, result);
       return result;
@@ -825,6 +918,69 @@ export async function createSpexorApp(
       }
       database.close();
     }
+  };
+}
+
+function buildVerificationRunReport(
+  session: ExecutionSessionDetailDto
+): VerificationRunReport {
+  const scenarios: VerificationRunReport["scenarios"] = session.items.map(
+    (item) => ({
+      scenarioId: item.scenarioId,
+      featureId: item.featureId,
+      featureTitle: item.featureTitle,
+      scenarioTitle: item.scenarioTitle,
+      sourceLine: item.sourceLine ?? null,
+      steps: item.steps ?? [],
+      environments: item.environments,
+      specHash: item.specHash,
+      status: item.resolvedStatus ?? "not-run",
+      isStale: item.isStale,
+      isCurrentSpecAvailable: item.isCurrentSpecAvailable,
+      result: item.latestResult
+        ? {
+            id: item.latestResult.id,
+            testerName: item.latestResult.testerName,
+            environment: item.latestResult.environment,
+            notes: item.latestResult.notes,
+            createdAt: item.latestResult.createdAt,
+            attachments: item.latestResult.attachments
+          }
+        : null
+    })
+  );
+  const count = (status: RunStatus) =>
+    scenarios.filter((scenario) => scenario.status === status).length;
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    run: {
+      id: session.id,
+      baseRunId: session.baseRunId,
+      name: session.name,
+      status: session.status,
+      createdAt: session.createdAt,
+      completedAt: session.completedAt,
+      gitContext: session.gitContext,
+      filters: { ...session.filters }
+    },
+    summary: {
+      total: session.totalCount,
+      resolved: session.resolvedCount,
+      passed: count("passed"),
+      failed: count("failed"),
+      blocked: count("blocked"),
+      skipped: count("skipped"),
+      notRun: scenarios.filter((scenario) => scenario.status === "not-run")
+        .length,
+      stale: scenarios.filter((scenario) => scenario.isStale).length,
+      evidence: scenarios.reduce(
+        (total, scenario) => total + (scenario.result?.attachments.length ?? 0),
+        0
+      )
+    },
+    scenarios
   };
 }
 
@@ -955,10 +1111,13 @@ function matchesSpecsFilters(
   const matchesSearch =
     query.length === 0 ||
     [
+      item.featureId,
+      item.identity.id,
       item.title,
       item.featureTitle,
       item.filePath,
       item.metadata.owner,
+      item.metadata.domain,
       ...item.metadata.tags,
       ...item.metadata.related
     ]
@@ -972,8 +1131,28 @@ function matchesSpecsFilters(
     item.metadata.environments.includes(filters.environment);
   const matchesPriority =
     filters.priority === "" || item.metadata.priority === filters.priority;
+  const matchesDomain =
+    !filters.domain || item.metadata.domain === filters.domain;
+  const matchesLifecycle =
+    !filters.lifecycle || item.metadata.lifecycle === filters.lifecycle;
+  const matchesIdentity =
+    !filters.identitySource || item.identity.source === filters.identitySource;
+  const matchesStatus =
+    !filters.latestStatus ||
+    (filters.latestStatus === "not-run"
+      ? item.statusSummary.aggregate === null
+      : item.statusSummary.aggregate === filters.latestStatus);
 
-  return matchesSearch && matchesTag && matchesEnvironment && matchesPriority;
+  return (
+    matchesSearch &&
+    matchesTag &&
+    matchesEnvironment &&
+    matchesPriority &&
+    matchesDomain &&
+    matchesLifecycle &&
+    matchesIdentity &&
+    matchesStatus
+  );
 }
 
 function compareSessionItems(
@@ -1006,6 +1185,10 @@ function buildExecutionSessionName(
     filters.tag && `tag:${filters.tag}`,
     filters.environment && `environment:${filters.environment}`,
     filters.priority && `priority:${filters.priority}`,
+    filters.domain && `domain:${filters.domain}`,
+    filters.lifecycle && `lifecycle:${filters.lifecycle}`,
+    filters.identitySource && `identity:${filters.identitySource}`,
+    filters.latestStatus && `status:${filters.latestStatus}`,
     filters.search.trim() && `search:${filters.search.trim()}`
   ].filter(Boolean);
 
@@ -1020,8 +1203,8 @@ function buildExecutionSessionName(
   }).format(createdAt);
 
   return activeFilters.length > 0
-    ? `Session ${stamp} (${activeFilters.join(", ")})`
-    : `Session ${stamp}`;
+    ? `Run ${stamp} (${activeFilters.join(", ")})`
+    : `Run ${stamp}`;
 }
 
 export type {
@@ -1031,4 +1214,9 @@ export type {
   ParseIssue,
   RunStatus
 } from "@spexor/domain";
+export type {
+  RunReportFormat,
+  VerificationRunReport,
+  VerificationRunReportScenario
+} from "@spexor/reporting";
 export type { SpexorDatabase };

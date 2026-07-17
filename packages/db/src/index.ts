@@ -93,6 +93,7 @@ export interface RecordedRunRecord extends LatestScenarioResult {
 
 export interface ExecutionSessionRecord {
   id: string;
+  baseRunId: string | null;
   name: string;
   status: "active" | "completed";
   createdAt: string;
@@ -140,6 +141,7 @@ export interface RecordScenarioRunInput {
 
 export interface CreateExecutionSessionInput {
   name: string;
+  baseRunId?: string | null | undefined;
   filtersJson: string;
   gitContext: GitContext;
   items: Array<{
@@ -173,6 +175,7 @@ export interface SpexorDatabase {
     scenarioKey: string,
     limit?: number
   ): ScenarioHistoryEntry[];
+  getRunResult(resultId: string): LatestScenarioResult | null;
   getRecordedRuns(limit?: number): RecordedRunRecord[];
   recordScenarioRun(input: RecordScenarioRunInput): ScenarioHistoryEntry;
   createExecutionSession(
@@ -274,6 +277,7 @@ interface AttachmentRow {
 
 interface ExecutionSessionRow {
   id: unknown;
+  base_run_id: unknown;
   name: unknown;
   status: unknown;
   created_at: unknown;
@@ -403,13 +407,15 @@ const schema = `
 
   CREATE TABLE IF NOT EXISTS execution_sessions (
     id TEXT PRIMARY KEY,
+    base_run_id TEXT,
     name TEXT NOT NULL,
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     completed_at TEXT,
     filters_json TEXT NOT NULL,
     git_context_json TEXT NOT NULL,
-    total_count INTEGER NOT NULL
+    total_count INTEGER NOT NULL,
+    FOREIGN KEY (base_run_id) REFERENCES execution_sessions(id)
   );
 
   CREATE TABLE IF NOT EXISTS execution_session_items (
@@ -456,7 +462,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   database.exec("PRAGMA foreign_keys = ON;");
   resetIncompatibleSchema(database);
   database.exec(schema);
-  database.exec("PRAGMA user_version = 3;");
+  database.exec("PRAGMA user_version = 4;");
 
   const upsertSpecFile = database.prepare(`
     INSERT INTO spec_files (
@@ -798,6 +804,36 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       }));
     },
     getScenarioRunHistory,
+    getRunResult(resultId) {
+      const row = database
+        .prepare(`
+          SELECT
+            rr.id AS result_id,
+            rr.run_id,
+            rr.scenario_key,
+            rr.status,
+            rr.notes,
+            rr.created_at,
+            runs.tester_name,
+            COALESCE(runs.environment, CASE
+              WHEN runs.platform IS NOT NULL AND runs.browser IS NOT NULL THEN runs.platform || '-' || runs.browser
+              ELSE COALESCE(runs.platform, runs.browser)
+            END) AS environment,
+            runs.browser,
+            runs.platform
+          FROM run_results rr
+          INNER JOIN runs ON runs.id = rr.run_id
+          WHERE rr.id = ?
+          LIMIT 1
+        `)
+        .get(resultId) as unknown as LatestResultRow | undefined;
+      if (!row) {
+        return null;
+      }
+      const attachments =
+        getAttachmentsForResultIds(database, [resultId]).get(resultId) ?? [];
+      return toLatestResultRecord(row, attachments);
+    },
     getRecordedRuns(limit = 500) {
       const rows = database
         .prepare(`
@@ -908,12 +944,13 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         database
           .prepare(`
             INSERT INTO execution_sessions (
-              id, name, status, created_at, completed_at, filters_json,
+              id, base_run_id, name, status, created_at, completed_at, filters_json,
               git_context_json, total_count
-            ) VALUES (?, ?, 'active', ?, NULL, ?, ?, ?)
+            ) VALUES (?, ?, ?, 'active', ?, NULL, ?, ?, ?)
           `)
           .run(
             sessionId,
+            input.baseRunId ?? null,
             input.name,
             now,
             input.filtersJson,
@@ -1031,16 +1068,19 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       runTransaction(database, () => {
         const existing = database
           .prepare(`
-            SELECT session_id
-            FROM execution_session_items
-            WHERE session_id = ? AND scenario_key = ?
+            SELECT items.session_id
+            FROM execution_session_items items
+            INNER JOIN execution_sessions sessions ON sessions.id = items.session_id
+            WHERE items.session_id = ?
+              AND items.scenario_key = ?
+              AND sessions.status = 'active'
             LIMIT 1
           `)
           .get(sessionId, scenarioKey) as { session_id?: unknown } | undefined;
 
         if (!existing) {
           throw new Error(
-            `Execution session item not found: ${sessionId}/${scenarioKey}`
+            `Execution Run is completed or item was not found: ${sessionId}/${scenarioKey}`
           );
         }
 
@@ -1284,7 +1324,7 @@ function resetIncompatibleSchema(database: DatabaseSync): void {
       .get()
   );
 
-  if (!hasTables || version >= 3) {
+  if (!hasTables || version >= 4) {
     return;
   }
 
@@ -1367,6 +1407,7 @@ function toExecutionSessionRecord(
 ): ExecutionSessionRecord {
   return {
     id: String(row.id),
+    baseRunId: row.base_run_id ? String(row.base_run_id) : null,
     name: String(row.name),
     status: String(row.status) as ExecutionSessionRecord["status"],
     createdAt: String(row.created_at),

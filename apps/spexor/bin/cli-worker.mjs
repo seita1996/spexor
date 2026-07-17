@@ -28,6 +28,8 @@ async function handleCommand(commandName, input) {
       return getProjectStatus(input);
     case "export-results":
       return exportProjectResults(input);
+    case "export-run":
+      return exportVerificationRun(input);
     default:
       throw new Error(`Unknown worker command: ${commandName}`);
   }
@@ -255,6 +257,34 @@ async function exportProjectResults(input) {
       ...exported,
       outputPath
     };
+  } finally {
+    await app.close();
+  }
+}
+
+async function exportVerificationRun(input) {
+  const app = await createSpexorApp({ rootDir: input.projectRoot });
+
+  try {
+    const exported = await app.exportVerificationRun(input.runId, input.format);
+    if (input.stdout) {
+      return { ...exported, outputPath: null };
+    }
+    const extension =
+      input.format === "markdown"
+        ? "md"
+        : input.format === "junit"
+          ? "xml"
+          : "json";
+    const outputPath =
+      input.outputPath ??
+      path.join(
+        input.projectRoot,
+        `.spexor/exports/run-${input.runId}.${extension}`
+      );
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, exported.content, "utf8");
+    return { ...exported, outputPath };
   } finally {
     await app.close();
   }

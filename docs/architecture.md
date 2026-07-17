@@ -9,6 +9,7 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 - `packages/db`: initializes SQLite, stores parsed snapshots and execution history
 - `packages/app`: orchestrates config, parser, DB, and watcher behavior into DTOs for the UI
 - `packages/results`: shared run-result event schema, NDJSON helpers, and hub client helpers
+- `packages/reporting`: versioned Run review model plus Markdown, JSON, and JUnit formatters
 - `packages/ui`: shared presentational React components
 - `apps/spexor`: local Node API plus Vite/React UI
 - `apps/results-hub`: low-cost shared results API for NDJSON ingest and scenario history queries
@@ -37,7 +38,8 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 6. Creating a verification Run captures Git context and immutable Scenario snapshots.
 7. Saving a manual result inserts a `run`, a `run_result`, and any evidence references.
 8. Run reads compare saved and active Scenario fingerprints to expose stale or deleted source specifications.
-9. When configured, Spexor can export runs as NDJSON for the shared hub and query shared history back over HTTP.
+9. Review and CLI exports format the same immutable Run report model.
+10. When configured, Spexor can export runs as NDJSON for the shared hub and query shared history back over HTTP.
 
 ## Scenario identity
 

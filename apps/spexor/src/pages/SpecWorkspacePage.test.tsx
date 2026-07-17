@@ -425,6 +425,31 @@ describe("SpecWorkspacePage", () => {
         screen.queryByRole("button", { name: /Add item to cart/i })
       ).not.toBeInTheDocument();
     });
+
+    await userEvent.selectOptions(screen.getByLabelText("Filter by tag"), "");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Filter by domain"),
+      "authentication"
+    );
+    expect(
+      screen.getByRole("button", { name: /Login with valid credentials/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add item to cart/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens a scenario from its Explore deep link", async () => {
+    renderWorkspace(
+      "/explore/features/specs%2Fmanual%2Flogin.feature/scenarios/scenario-invalid"
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Login with invalid credentials"
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Scenario 2 of 2")).toBeInTheDocument();
   });
 
   it("records a manual result for the selected scenario", async () => {
@@ -600,6 +625,11 @@ describe("SpecWorkspacePage", () => {
       screen.getByRole("button", { name: "Back to workspace" })
     ).toBeInTheDocument();
 
+    await userEvent.keyboard("f");
+    expect(
+      screen.getByLabelText("Status for Login with valid credentials")
+    ).toHaveValue("failed");
+
     await userEvent.type(
       screen.getByLabelText("Tester or developer"),
       "qa@example.com"
@@ -619,6 +649,7 @@ describe("SpecWorkspacePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Saved");
+    expect(screen.getByText("Run completed")).toBeInTheDocument();
 
     expect(saveSessionScenarioRunMock).toHaveBeenCalledWith(
       "session-1",
@@ -688,8 +719,8 @@ describe("SpecWorkspacePage", () => {
     expect(await screen.findByText("Historical run snapshot")).toBeVisible();
     expect(screen.getByText("the dashboard appears")).toBeVisible();
     expect(screen.getByText("stale · source removed")).toBeVisible();
-    expect(screen.getByText("Git context unavailable")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Unavailable" })).toBeDisabled();
+    expect(screen.getAllByText("Git context unavailable")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Locked" })).toBeDisabled();
   });
 });
 
@@ -699,6 +730,14 @@ function renderWorkspace(initialEntry = "/", routePath = "/") {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path={routePath} element={<SpecWorkspacePage />} />
+          <Route
+            path="/explore/features/:featureId"
+            element={<SpecWorkspacePage />}
+          />
+          <Route
+            path="/explore/features/:featureId/scenarios/:scenarioId"
+            element={<SpecWorkspacePage />}
+          />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>

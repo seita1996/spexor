@@ -390,6 +390,19 @@ export async function exportResults(options = {}) {
   });
 }
 
+export async function exportRun(options = {}) {
+  const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
+  return runWorkerCommand("export-run", {
+    projectRoot,
+    runId: options.runId,
+    format: options.format ?? "markdown",
+    outputPath: options.outputPath
+      ? path.resolve(projectRoot, options.outputPath)
+      : undefined,
+    stdout: options.stdout ?? false
+  });
+}
+
 export async function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -448,6 +461,7 @@ Usage:
   spexor scan
   spexor status
   spexor export results [--out <path> | --stdout]
+  spexor export run <id> [--format markdown|json|junit] [--out <path> | --stdout]
   spexor hub init cloudflare
   spexor hub init aws
   spexor hub link --base-url <url> [--project-id <id>]

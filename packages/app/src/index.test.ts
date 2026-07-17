@@ -197,6 +197,55 @@ Feature: User login
     expect(updatedFeature?.environmentStatuses[0]?.aggregateStatus).toBe(
       "passed"
     );
+    await expect(
+      app.recordSessionScenarioResult(session.id, scenarioId, {
+        testerName: "qa@example.com",
+        status: "failed"
+      })
+    ).rejects.toThrow("completed or missing");
+
+    await app.recordScenarioResult(scenarioId, {
+      testerName: "another@example.com",
+      status: "failed",
+      notes: "later independent result"
+    });
+    const immutableSession = await app.getExecutionSession(session.id);
+    expect(immutableSession?.items[0]?.resolvedStatus).toBe("passed");
+    expect(immutableSession?.items[0]?.latestResult?.notes).toBe(
+      "rerun after fix"
+    );
+
+    const failedScenarioId = detail?.scenarioGroups[1]?.cases[0]?.id ?? "";
+    const failedRun = await app.createExecutionSession({
+      name: "Failed login checks",
+      filters: {
+        search: "",
+        tag: "auth",
+        environment: "mac-chrome",
+        priority: "high"
+      },
+      scenarioIds: [failedScenarioId]
+    });
+    await app.recordSessionScenarioResult(failedRun.id, failedScenarioId, {
+      testerName: "qa@example.com",
+      status: "blocked",
+      notes: "fixture unavailable"
+    });
+    const retryRun = await app.retryExecutionSession(failedRun.id);
+    expect(retryRun.baseRunId).toBe(failedRun.id);
+    expect(retryRun.items.map((item) => item.scenarioId)).toEqual([
+      failedScenarioId
+    ]);
+    expect(retryRun.status).toBe("active");
+
+    const markdownReport = await app.exportVerificationRun(
+      failedRun.id,
+      "markdown"
+    );
+    expect(markdownReport.content).toContain("# Failed login checks");
+    expect(markdownReport.content).toContain("fixture unavailable");
+    const junitReport = await app.exportVerificationRun(failedRun.id, "junit");
+    expect(junitReport.content).toContain('skipped="1"');
 
     await expect(
       app.createExecutionSession({
@@ -237,7 +286,7 @@ Feature: User login
 
     const exported = await app.exportRunResultsNdjson();
     expect(exported.projectId).toBe("qa-console");
-    expect(exported.itemCount).toBe(2);
+    expect(exported.itemCount).toBe(4);
     expect(exported.ndjson).toContain(`"testerName":"qa@example.com"`);
 
     const syncResult = await app.syncSharedResults();

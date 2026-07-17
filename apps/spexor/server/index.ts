@@ -37,7 +37,10 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, catalog);
     }
 
-    if (request.method === "GET" && pathname === "/api/sessions") {
+    if (
+      request.method === "GET" &&
+      (pathname === "/api/runs" || pathname === "/api/sessions")
+    ) {
       const items = await spexor.getExecutionSessions();
       return writeJson(response, 200, items);
     }
@@ -52,7 +55,10 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, result);
     }
 
-    if (request.method === "POST" && pathname === "/api/sessions") {
+    if (
+      request.method === "POST" &&
+      (pathname === "/api/runs" || pathname === "/api/sessions")
+    ) {
       const body = await readJsonBody(request);
       const session = await spexor.createExecutionSession(
         body as CreateExecutionSessionInput
@@ -93,10 +99,64 @@ const server = http.createServer(async (request, response) => {
       return writeJson(response, 200, detail);
     }
 
-    if (request.method === "GET" && pathname.startsWith("/api/sessions/")) {
-      const sessionPath = pathname.slice("/api/sessions/".length);
-      if (!sessionPath.includes("/")) {
-        const sessionId = decodeURIComponent(sessionPath);
+    if (
+      request.method === "POST" &&
+      /^\/api\/(?:runs|sessions)\/[^/]+\/retry$/.test(pathname)
+    ) {
+      const pathMatch = pathname.match(
+        /^\/api\/(?:runs|sessions)\/([^/]+)\/retry$/
+      );
+      const runId = decodeURIComponent(pathMatch?.[1] ?? "");
+      const retry = await spexor.retryExecutionSession(runId);
+      return writeJson(response, 201, retry);
+    }
+
+    const reportPathMatch = pathname.match(
+      /^\/api\/(?:runs|sessions)\/([^/]+)\/report$/
+    );
+    if (request.method === "GET" && reportPathMatch) {
+      const runId = decodeURIComponent(reportPathMatch[1] ?? "");
+      const report = await spexor.getVerificationRunReport(runId);
+      if (!report) {
+        return writeJson(response, 404, {
+          error: `Verification Run not found: ${runId}`
+        });
+      }
+      return writeJson(response, 200, report);
+    }
+
+    const exportPathMatch = pathname.match(
+      /^\/api\/(?:runs|sessions)\/([^/]+)\/export$/
+    );
+    if (request.method === "GET" && exportPathMatch) {
+      const runId = decodeURIComponent(exportPathMatch[1] ?? "");
+      const format = url.searchParams.get("format") ?? "markdown";
+      if (!["markdown", "json", "junit"].includes(format)) {
+        return writeJson(response, 400, { error: `Unknown format: ${format}` });
+      }
+      const exported = await spexor.exportVerificationRun(
+        runId,
+        format as "markdown" | "json" | "junit"
+      );
+      response.writeHead(200, {
+        "Content-Type": exported.contentType,
+        "Content-Disposition": `attachment; filename="${exported.filename}"`
+      });
+      response.end(exported.content);
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      (pathname.startsWith("/api/runs/") ||
+        pathname.startsWith("/api/sessions/"))
+    ) {
+      const routePrefix = pathname.startsWith("/api/runs/")
+        ? "/api/runs/"
+        : "/api/sessions/";
+      const runPath = pathname.slice(routePrefix.length);
+      if (!runPath.includes("/")) {
+        const sessionId = decodeURIComponent(runPath);
         const detail = await spexor.getExecutionSession(sessionId);
         if (!detail) {
           return writeJson(response, 404, {
@@ -129,12 +189,13 @@ const server = http.createServer(async (request, response) => {
 
     if (
       request.method === "POST" &&
-      pathname.startsWith("/api/sessions/") &&
+      (pathname.startsWith("/api/runs/") ||
+        pathname.startsWith("/api/sessions/")) &&
       pathname.includes("/scenarios/") &&
       pathname.endsWith("/results")
     ) {
       const pathMatch = pathname.match(
-        /^\/api\/sessions\/([^/]+)\/scenarios\/(.+)\/results$/
+        /^\/api\/(?:runs|sessions)\/([^/]+)\/scenarios\/(.+)\/results$/
       );
       if (!pathMatch) {
         return writeJson(response, 404, { error: "Route not found." });

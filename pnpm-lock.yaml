@@ -149,6 +149,9 @@ importers:
       '@spexor/parser':
         specifier: workspace:*
         version: link:../parser
+      '@spexor/reporting':
+        specifier: workspace:*
+        version: link:../reporting
       '@spexor/results':
         specifier: workspace:*
         version: link:../results
@@ -202,6 +205,12 @@ importers:
       zod:
         specifier: ^4.3.6
         version: 4.3.6
+
+  packages/reporting:
+    dependencies:
+      '@spexor/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/results:
     dependencies:

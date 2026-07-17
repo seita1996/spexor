@@ -1,0 +1,22 @@
+{
+  "name": "@spexor/reporting",
+  "version": "0.1.0",
+  "description": "Stable Markdown, JSON, and JUnit reporting for Spexor verification Runs.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@spexor/domain": "workspace:*"
+  }
+}

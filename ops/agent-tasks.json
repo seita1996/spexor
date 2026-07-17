@@ -1,6 +1,6 @@
 {
   "lastReviewedOn": "2026-07-17",
-  "currentFocus": "Create a read-optimized Explore mode for browsing version-controlled specifications.",
+  "currentFocus": "Add explicit structural checks for package boundaries and app-to-package dependency direction.",
   "startupRoutine": [
     "Confirm cwd and clean/dirty git state.",
     "Read the last five commits.",
@@ -42,19 +42,19 @@
     {
       "id": "explore-mode",
       "priority": "high",
-      "status": "todo",
+      "status": "done",
       "summary": "Create a read-optimized Explore mode for browsing version-controlled specifications."
     },
     {
       "id": "regression-run-ux",
       "priority": "medium",
-      "status": "todo",
+      "status": "done",
       "summary": "Improve verification runs with progress, shortcuts, retry, and completion summaries."
     },
     {
       "id": "run-reporting",
       "priority": "medium",
-      "status": "todo",
+      "status": "done",
       "summary": "Export verification runs as Markdown, JSON, and JUnit."
     },
     {

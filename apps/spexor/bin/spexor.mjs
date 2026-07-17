@@ -9,6 +9,7 @@ import {
   deployAwsHub,
   deployCloudflareHub,
   exportResults,
+  exportRun,
   getProjectStatus,
   initHub,
   initProject,
@@ -210,6 +211,33 @@ async function handleStatusCommand() {
 }
 
 async function handleExportCommand(commandArgs) {
+  if (commandArgs[0] === "run") {
+    const parsed = parseArgs(commandArgs.slice(1));
+    const runId = parsed.positionals[0];
+    const format = parsed.values["--format"] ?? "markdown";
+    if (!runId) {
+      throw new Error("export run requires a Run ID");
+    }
+    if (!["markdown", "json", "junit"].includes(format)) {
+      throw new Error(`unknown Run export format: ${format}`);
+    }
+    const result = await exportRun({
+      projectRoot,
+      runId,
+      format,
+      outputPath: parsed.values["--out"],
+      stdout: parsed.flags.has("--stdout")
+    });
+    if (parsed.flags.has("--stdout")) {
+      process.stdout.write(result.content);
+      return;
+    }
+    console.log(
+      `[spexor] exported Run ${runId} as ${format} to ${path.relative(projectRoot, result.outputPath)}`
+    );
+    return;
+  }
+
   if (commandArgs[0] !== "results") {
     printHelp();
     process.exit(1);

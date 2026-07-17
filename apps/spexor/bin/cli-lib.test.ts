@@ -7,6 +7,7 @@ import {
   deployAwsHub,
   deployCloudflareHub,
   exportResults,
+  exportRun,
   getProjectStatus,
   initHub,
   initProject,
@@ -265,6 +266,16 @@ describe("spexor cli helpers", () => {
       status: "passed",
       notes: "verified"
     });
+    const verificationRun = await app.createExecutionSession({
+      name: "CLI export Run",
+      filters: {
+        search: "",
+        tag: "",
+        environment: "",
+        priority: ""
+      },
+      scenarioIds: [scenarioId ?? ""]
+    });
     await app.close();
 
     const status = await getProjectStatus({ projectRoot });
@@ -278,6 +289,16 @@ describe("spexor cli helpers", () => {
     expect(exported.itemCount).toBe(1);
     await expect(fs.readFile(exported.outputPath, "utf8")).resolves.toContain(
       '"testerName":"qa@example.com"'
+    );
+
+    const runExport = await exportRun({
+      projectRoot,
+      runId: verificationRun.id,
+      format: "junit"
+    });
+    expect(runExport.filename).toBe(`spexor-run-${verificationRun.id}.xml`);
+    await expect(fs.readFile(runExport.outputPath, "utf8")).resolves.toContain(
+      "<testsuites"
     );
   });
 });

@@ -6,7 +6,7 @@ import type { ParsedSpecFile } from "@spexor/domain";
 import { initDatabase } from "./index";
 
 describe("@spexor/db", () => {
-  it("rebuilds pre-snapshot databases at schema version 3", async () => {
+  it("rebuilds pre-Run-lineage databases at schema version 4", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-db-v1-"));
     const dbPath = path.join(tempRoot, "spexor.db");
     const legacy = new DatabaseSync(dbPath);
@@ -31,7 +31,7 @@ describe("@spexor/db", () => {
     const version = migrated.prepare("PRAGMA user_version").get() as {
       user_version: number;
     };
-    expect(version.user_version).toBe(3);
+    expect(version.user_version).toBe(4);
     migrated.close();
 
     const reopened = initDatabase(dbPath);
@@ -197,6 +197,34 @@ describe("@spexor/db", () => {
     );
     expect(sessionItems[0]?.isCurrentSpecAvailable).toBe(true);
     expect(sessionItems[0]?.isStale).toBe(false);
+    expect(database.getRunResult(saved.id)?.notes).toBe("happy path");
+    expect(() =>
+      database.linkSessionScenarioResult(
+        session.id,
+        scenario.scenarioKey,
+        saved
+      )
+    ).toThrow("completed or item was not found");
+
+    const retrySession = database.createExecutionSession({
+      name: "Retry auth smoke",
+      baseRunId: session.id,
+      filtersJson: session.filtersJson,
+      gitContext: JSON.parse(session.gitContextJson),
+      items: [
+        {
+          scenarioKey: scenario.scenarioKey,
+          featureKey: parsed.feature?.id ?? "",
+          featureTitle: "Login",
+          scenarioTitle: "Login with valid credentials",
+          stepsSnapshot: [],
+          environmentsSnapshot: ["mac-chrome"],
+          specHash: scenario.specHash,
+          sortOrder: 1
+        }
+      ]
+    });
+    expect(retrySession.baseRunId).toBe(session.id);
 
     const syncState = database.upsertSharedSyncState({
       projectId: "qa-console",

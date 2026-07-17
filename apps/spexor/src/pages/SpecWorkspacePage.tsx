@@ -16,7 +16,6 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { IssueList } from "../components/IssueList";
 import { ScenarioExecutionPanel } from "../components/ScenarioExecutionPanel";
-import { ThemeToggle } from "../components/theme-toggle";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -39,6 +38,7 @@ import {
   getScenarioHistory,
   getSharedSyncStatus,
   getSpecCatalog,
+  retryExecutionSession,
   saveScenarioRun,
   saveSessionScenarioRun,
   syncSharedResults,
@@ -126,7 +126,8 @@ const paneWidthStorageKey = "spexor.workspace-pane-widths";
 export function SpecWorkspacePage() {
   const params = useParams();
   const navigate = useNavigate();
-  const routeFeatureId = params["*"] ?? "";
+  const routeFeatureId = params["featureId"] ?? params["*"] ?? "";
+  const routeScenarioId = params["scenarioId"] ?? "";
   const routeSessionId = params["sessionId"] ?? "";
   const [features, setFeatures] = useState<CatalogFeatureNode[]>([]);
   const [executionSession, setExecutionSession] =
@@ -137,6 +138,10 @@ export function SpecWorkspacePage() {
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [environmentFilter, setEnvironmentFilter] = useState("");
+  const [domainFilter, setDomainFilter] = useState("");
+  const [lifecycleFilter, setLifecycleFilter] = useState("");
+  const [identityFilter, setIdentityFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -153,7 +158,7 @@ export function SpecWorkspacePage() {
   const [history, setHistory] = useState<ScenarioHistoryDto | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [sharedSyncStatus, setSharedSyncStatus] =
+  const [_sharedSyncStatus, setSharedSyncStatus] =
     useState<SharedSyncStatusDto | null>(null);
   const deferredQuery = useDeferredValue(query);
 
@@ -191,10 +196,13 @@ export function SpecWorkspacePage() {
           .flatMap((feature) => feature.scenarioGroups)
           .flatMap((group) => group.cases)
           .at(0);
+        const directScenario = catalog.features
+          .flatMap((feature) => feature.scenarioGroups)
+          .flatMap((group) => group.cases)
+          .find((scenario) => scenario.id === routeScenarioId);
         setSelectedScenarioId(
-          (current) =>
-            current ??
-            sessionDetail?.nextScenarioId ??
+          sessionDetail?.nextScenarioId ??
+            directScenario?.id ??
             findFirstScenarioIdForFeature(catalog.features, routeFeatureId) ??
             firstScenario?.id ??
             null
@@ -219,7 +227,7 @@ export function SpecWorkspacePage() {
     return () => {
       cancelled = true;
     };
-  }, [routeFeatureId, routeSessionId]);
+  }, [routeFeatureId, routeScenarioId, routeSessionId]);
 
   const scenarios = useMemo(() => flattenScenarios(features), [features]);
   const selectedScenario =
@@ -248,9 +256,23 @@ export function SpecWorkspacePage() {
       filterFeatures(filterFeaturesForSession(features, executionSession), {
         query: deferredQuery,
         tag: tagFilter,
-        environment: environmentFilter
+        environment: environmentFilter,
+        domain: domainFilter,
+        lifecycle: lifecycleFilter,
+        identity: identityFilter,
+        status: statusFilter
       }),
-    [features, executionSession, deferredQuery, environmentFilter, tagFilter]
+    [
+      features,
+      executionSession,
+      deferredQuery,
+      environmentFilter,
+      tagFilter,
+      domainFilter,
+      lifecycleFilter,
+      identityFilter,
+      statusFilter
+    ]
   );
   const filteredScenarios = useMemo(
     () => flattenScenarios(filteredFeatures),
@@ -267,6 +289,17 @@ export function SpecWorkspacePage() {
     () =>
       [
         ...new Set(features.flatMap((feature) => feature.metadata.environments))
+      ].sort(),
+    [features]
+  );
+  const domainOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          features.flatMap((feature) =>
+            feature.metadata.domain ? [feature.metadata.domain] : []
+          )
+        )
       ].sort(),
     [features]
   );
@@ -352,35 +385,9 @@ export function SpecWorkspacePage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground">
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
-            S
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">Spexor</div>
-            <div className="truncate text-xs text-muted-foreground">
-              Git-managed manual spec workspace
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {sharedSyncStatus?.enabled ? (
-            <Badge variant="secondary" className="hidden sm:inline-flex">
-              shared: {sharedSyncStatus.projectId}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="hidden sm:inline-flex">
-              local only
-            </Badge>
-          )}
-          <ThemeToggle />
-        </div>
-      </header>
-
+    <div className="h-full overflow-hidden bg-background text-foreground">
       <main
-        className="grid h-[calc(100vh-3.5rem)] overflow-hidden lg:grid-cols-[var(--left-pane-width)_8px_minmax(0,1fr)_8px_var(--right-pane-width)]"
+        className="grid h-full grid-rows-[minmax(240px,40vh)_minmax(520px,auto)_minmax(360px,auto)] overflow-y-auto lg:grid-cols-[var(--left-pane-width)_8px_minmax(0,1fr)_8px_var(--right-pane-width)] lg:grid-rows-none lg:overflow-hidden"
         style={
           {
             "--left-pane-width": `${leftPaneWidth}px`,
@@ -402,13 +409,56 @@ export function SpecWorkspacePage() {
           onQueryChange={setQuery}
           tagFilter={tagFilter}
           environmentFilter={environmentFilter}
+          domainFilter={domainFilter}
+          lifecycleFilter={lifecycleFilter}
+          identityFilter={identityFilter}
+          statusFilter={statusFilter}
           tagOptions={tagOptions}
           environmentOptions={environmentOptions}
+          domainOptions={domainOptions}
           onTagFilterChange={setTagFilter}
           onEnvironmentFilterChange={setEnvironmentFilter}
+          onDomainFilterChange={setDomainFilter}
+          onLifecycleFilterChange={setLifecycleFilter}
+          onIdentityFilterChange={setIdentityFilter}
+          onStatusFilterChange={setStatusFilter}
+          onStartFilteredRun={async () => {
+            if (filteredScenarios.length === 0) {
+              return;
+            }
+            try {
+              setStartingSession(true);
+              const session = await createExecutionSession({
+                name: `Filtered run (${filteredScenarios.length} scenarios)`,
+                filters: {
+                  search: query,
+                  tag: tagFilter,
+                  environment: environmentFilter,
+                  priority: ""
+                },
+                scenarioIds: filteredScenarios.map((scenario) => scenario.id)
+              });
+              setExecutionSession(session);
+              setSelectedScenarioId(
+                session.nextScenarioId ?? session.items[0]?.scenarioId ?? null
+              );
+              void navigate(`/runs/${encodeURIComponent(session.id)}`);
+            } finally {
+              setStartingSession(false);
+            }
+          }}
+          startingRun={startingSession}
           onSelectScenario={(scenarioId) => {
             setSelectedScenarioId(scenarioId);
             setSaveError(null);
+            if (!executionSession) {
+              const scenario = scenarios.find((item) => item.id === scenarioId);
+              if (scenario) {
+                void navigate(
+                  `/explore/features/${encodeURIComponent(scenario.featureId)}/scenarios/${encodeURIComponent(scenario.id)}`
+                );
+              }
+            }
           }}
           onRefresh={async () => {
             try {
@@ -481,7 +531,30 @@ export function SpecWorkspacePage() {
               setSelectedScenarioId(
                 session.nextScenarioId ?? session.items[0]?.scenarioId ?? null
               );
-              void navigate(`/sessions/${session.id}`);
+              void navigate(`/runs/${encodeURIComponent(session.id)}`);
+            } finally {
+              setStartingSession(false);
+            }
+          }}
+          onStartScenarioSession={async () => {
+            if (!selectedScenario) {
+              return;
+            }
+            try {
+              setStartingSession(true);
+              const session = await createExecutionSession({
+                name: `Scenario run: ${selectedScenario.title}`,
+                filters: {
+                  search: "",
+                  tag: "",
+                  environment: "",
+                  priority: ""
+                },
+                scenarioIds: [selectedScenario.id]
+              });
+              setExecutionSession(session);
+              setSelectedScenarioId(selectedScenario.id);
+              void navigate(`/runs/${encodeURIComponent(session.id)}`);
             } finally {
               setStartingSession(false);
             }
@@ -489,12 +562,33 @@ export function SpecWorkspacePage() {
           onSelectScenario={(scenarioId) => {
             setSelectedScenarioId(scenarioId);
             setSaveError(null);
+            if (!executionSession) {
+              const scenario = scenarios.find((item) => item.id === scenarioId);
+              if (scenario) {
+                void navigate(
+                  `/explore/features/${encodeURIComponent(scenario.featureId)}/scenarios/${encodeURIComponent(scenario.id)}`
+                );
+              }
+            }
           }}
           onExitSession={() => {
             setExecutionSession(null);
             void navigate(
-              selectedFeature ? `/features/${selectedFeature.id}` : "/"
+              selectedFeature
+                ? `/explore/features/${encodeURIComponent(selectedFeature.id)}`
+                : "/explore"
             );
+          }}
+          onRetrySession={async () => {
+            if (!executionSession) {
+              return;
+            }
+            const retry = await retryExecutionSession(executionSession.id);
+            setExecutionSession(retry);
+            setSelectedScenarioId(
+              retry.nextScenarioId ?? retry.items[0]?.scenarioId ?? null
+            );
+            void navigate(`/runs/${encodeURIComponent(retry.id)}`);
           }}
           onSaveSessionScenario={async (scenarioId, payload) => {
             if (!executionSession) {
@@ -530,6 +624,7 @@ export function SpecWorkspacePage() {
                 const nextHistory = await getScenarioHistory(scenarioId);
                 setHistory(nextHistory);
               }
+              setSelectedScenarioId(nextSession.nextScenarioId ?? scenarioId);
             } catch (submitError) {
               setSaveError(
                 submitError instanceof Error
@@ -646,8 +741,13 @@ function SpecExplorer(props: {
   executionSession: ExecutionSessionDetailDto | null;
   tagFilter: string;
   environmentFilter: string;
+  domainFilter: string;
+  lifecycleFilter: string;
+  identityFilter: string;
+  statusFilter: string;
   tagOptions: string[];
   environmentOptions: string[];
+  domainOptions: string[];
   loading: boolean;
   loadingDetails: boolean;
   refreshing: boolean;
@@ -656,6 +756,12 @@ function SpecExplorer(props: {
   onQueryChange: (value: string) => void;
   onTagFilterChange: (value: string) => void;
   onEnvironmentFilterChange: (value: string) => void;
+  onDomainFilterChange: (value: string) => void;
+  onLifecycleFilterChange: (value: string) => void;
+  onIdentityFilterChange: (value: string) => void;
+  onStatusFilterChange: (value: string) => void;
+  onStartFilteredRun: () => Promise<void>;
+  startingRun: boolean;
   onSelectScenario: (scenarioId: string) => void;
   onRefresh: () => Promise<void>;
 }) {
@@ -732,7 +838,92 @@ function SpecExplorer(props: {
                 ))}
               </select>
             </label>
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Domain
+              <select
+                aria-label="Filter by domain"
+                value={props.domainFilter}
+                onChange={(event) =>
+                  props.onDomainFilterChange(event.target.value)
+                }
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All domains</option>
+                {props.domainOptions.map((domain) => (
+                  <option key={domain} value={domain}>
+                    {domain}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Lifecycle
+              <select
+                aria-label="Filter by lifecycle"
+                value={props.lifecycleFilter}
+                onChange={(event) =>
+                  props.onLifecycleFilterChange(event.target.value)
+                }
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All lifecycles</option>
+                {[
+                  ["draft", "Draft"],
+                  ["active", "Active"],
+                  ["deprecated", "Deprecated"],
+                  ["archived", "Archived"]
+                ].map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Identity source
+              <select
+                aria-label="Filter by identity source"
+                value={props.identityFilter}
+                onChange={(event) =>
+                  props.onIdentityFilterChange(event.target.value)
+                }
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All identities</option>
+                <option value="explicit">Explicit</option>
+                <option value="legacy">Legacy</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+              Latest status
+              <select
+                aria-label="Filter by latest status"
+                value={props.statusFilter}
+                onChange={(event) =>
+                  props.onStatusFilterChange(event.target.value)
+                }
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All statuses</option>
+                <option value="not-run">Not run</option>
+                {runStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+          {!props.executionSession ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={props.startingRun || props.features.length === 0}
+              onClick={() => void props.onStartFilteredRun()}
+            >
+              {props.startingRun ? "Starting..." : "Run current filter"}
+            </Button>
+          ) : null}
         </section>
 
         <div className="min-h-0 overflow-y-auto">
@@ -742,8 +933,9 @@ function SpecExplorer(props: {
           {props.loading ? <StateBlock>Loading specs...</StateBlock> : null}
           {!props.loading && props.features.length === 0 ? (
             <StateBlock>
-              No scenarios match the current search. Try a scenario title, tag,
-              or file path.
+              {props.allFeatureCount === 0
+                ? "No specification files were found. Add a .feature file, then rescan."
+                : "No scenarios match the current filters. Adjust search, metadata, identity, or status filters."}
             </StateBlock>
           ) : null}
           <div className="py-1">
@@ -927,6 +1119,7 @@ function SessionProgressSummary(props: { session: ExecutionSessionDetailDto }) {
       : Math.round(
           (props.session.resolvedCount / props.session.totalCount) * 100
         );
+  const counts = countRunStatuses(props.session);
 
   return (
     <section className="grid gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs">
@@ -937,6 +1130,16 @@ function SessionProgressSummary(props: { session: ExecutionSessionDetailDto }) {
       </div>
       <div className="text-muted-foreground">
         {props.session.status === "completed" ? "Completed" : "Active run"}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {runStatusOptions.map((status) => (
+          <span key={status} className="rounded bg-muted px-1.5 py-0.5">
+            {status} {counts[status]}
+          </span>
+        ))}
+        <span className="rounded bg-muted px-1.5 py-0.5">
+          not-run {counts["not-run"]}
+        </span>
       </div>
       <div className="text-muted-foreground">
         {formatGitContext(props.session.gitContext)}
@@ -956,8 +1159,10 @@ function ScenarioWorkspace(props: {
   startingSession: boolean;
   saveError: string | null;
   onStartFeatureSession: () => Promise<void>;
+  onStartScenarioSession: () => Promise<void>;
   onSelectScenario: (scenarioId: string) => void;
   onExitSession: () => void;
+  onRetrySession: () => Promise<void>;
   onSaveSessionScenario: (
     scenarioId: string,
     input: RecordScenarioResultInput
@@ -996,6 +1201,7 @@ function ScenarioWorkspace(props: {
             isSaving={props.saving}
             saveError={props.saveError}
             onSaveScenario={props.onSaveSessionScenario}
+            onRetry={props.onRetrySession}
           />
         </div>
       </section>
@@ -1014,6 +1220,7 @@ function ScenarioWorkspace(props: {
   }
 
   const background = props.feature.detail?.background ?? [];
+  const sourcePath = props.scenario.featurePath;
   const environments = props.feature.metadata.environments;
   const selectedScenarioNumber =
     props.selectedScenarioIndex >= 0 ? props.selectedScenarioIndex + 1 : 1;
@@ -1132,7 +1339,17 @@ function ScenarioWorkspace(props: {
                 {props.scenario.featurePath}
               </div>
             </div>
-            <FeatureHealthSummary feature={props.feature} />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void navigator.clipboard.writeText(sourcePath)}
+              >
+                Copy source path
+              </Button>
+              <FeatureHealthSummary feature={props.feature} />
+            </div>
           </div>
           {props.scenario.description ? (
             <p className="text-sm leading-6 text-muted-foreground">
@@ -1191,6 +1408,7 @@ function ScenarioWorkspace(props: {
             isSaving={props.saving}
             saveError={props.saveError}
             onSaveScenario={props.onSaveSessionScenario}
+            onRetry={props.onRetrySession}
           />
         ) : (
           <section className="rounded-lg border border-border bg-card p-4">
@@ -1204,15 +1422,26 @@ function ScenarioWorkspace(props: {
                   leaves the `.feature` file unchanged.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={props.startingSession}
-                onClick={() => void props.onStartFeatureSession()}
-              >
-                {props.startingSession ? "Starting..." : "Start feature run"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={props.startingSession}
+                  onClick={() => void props.onStartScenarioSession()}
+                >
+                  {props.startingSession ? "Starting..." : "Start scenario run"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={props.startingSession}
+                  onClick={() => void props.onStartFeatureSession()}
+                >
+                  {props.startingSession ? "Starting..." : "Start feature run"}
+                </Button>
+              </div>
             </div>
             <ScenarioExecutionPanel
               key={props.scenario.id}
@@ -1240,6 +1469,7 @@ function SessionExecutionGrid(props: {
     scenarioId: string,
     input: RecordScenarioResultInput
   ) => Promise<void>;
+  onRetry: () => Promise<void>;
 }) {
   const environments = useMemo(
     () =>
@@ -1257,6 +1487,15 @@ function SessionExecutionGrid(props: {
   const [environment, setEnvironment] = useState(
     props.session.filters.environment || environments[0] || ""
   );
+  const [activeScenarioId, setActiveScenarioId] = useState(
+    props.session.nextScenarioId ?? props.session.items[0]?.scenarioId ?? null
+  );
+  const [shortcutSelection, setShortcutSelection] = useState<{
+    scenarioId: string;
+    status: RunStatus;
+    revision: number;
+  } | null>(null);
+  const readOnly = props.session.status === "completed";
 
   useEffect(() => {
     setEnvironment(
@@ -1264,6 +1503,57 @@ function SessionExecutionGrid(props: {
         current || props.session.filters.environment || environments[0] || ""
     );
   }, [environments, props.session.filters.environment]);
+
+  useEffect(() => {
+    if (props.session.nextScenarioId) {
+      setActiveScenarioId(props.session.nextScenarioId);
+    }
+  }, [props.session.nextScenarioId]);
+
+  useEffect(() => {
+    if (readOnly) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.matches("input, textarea, select, button") ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const currentIndex = props.session.items.findIndex(
+        (item) => item.scenarioId === activeScenarioId
+      );
+      if (event.key === "j" || event.key === "J" || event.key === "ArrowDown") {
+        event.preventDefault();
+        const next =
+          props.session.items[
+            Math.min(currentIndex + 1, props.session.items.length - 1)
+          ];
+        setActiveScenarioId(next?.scenarioId ?? activeScenarioId);
+        return;
+      }
+      if (event.key === "k" || event.key === "K" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const previous = props.session.items[Math.max(currentIndex - 1, 0)];
+        setActiveScenarioId(previous?.scenarioId ?? activeScenarioId);
+        return;
+      }
+      const status = shortcutRunStatus(event.key);
+      if (status && activeScenarioId) {
+        event.preventDefault();
+        setShortcutSelection((current) => ({
+          scenarioId: activeScenarioId,
+          status,
+          revision: (current?.revision ?? 0) + 1
+        }));
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [activeScenarioId, props.session.items, readOnly]);
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-card p-4">
@@ -1273,8 +1563,9 @@ function SessionExecutionGrid(props: {
             Run execution
           </h3>
           <p className="text-sm text-muted-foreground">
-            Record each scenario directly from the active run. Rows stay neutral
-            until they are saved.
+            {readOnly
+              ? "This completed Run is an immutable historical record."
+              : "Record each Scenario directly from the active Run; saved rows advance focus automatically."}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[minmax(180px,240px)_minmax(160px,220px)]">
@@ -1282,6 +1573,7 @@ function SessionExecutionGrid(props: {
             Tester or developer
             <Input
               required
+              disabled={readOnly}
               value={testerName}
               onChange={(event) => setTesterName(event.target.value)}
               placeholder="Your name or email"
@@ -1291,6 +1583,7 @@ function SessionExecutionGrid(props: {
             <label className="grid gap-1 text-xs font-medium text-muted-foreground">
               Environment
               <Select
+                disabled={readOnly}
                 value={environment}
                 onChange={(event) => setEnvironment(event.target.value)}
               >
@@ -1304,6 +1597,19 @@ function SessionExecutionGrid(props: {
           ) : null}
         </div>
       </div>
+
+      {readOnly ? (
+        <RunCompletionSummary session={props.session} onRetry={props.onRetry} />
+      ) : (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          <span>P passed</span>
+          <span>F failed</span>
+          <span>B blocked</span>
+          <span>S skipped</span>
+          <span>J / ↓ next</span>
+          <span>K / ↑ previous</span>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
@@ -1333,6 +1639,14 @@ function SessionExecutionGrid(props: {
                 testerName={testerName}
                 environment={environment}
                 isSaving={props.isSaving}
+                readOnly={readOnly}
+                active={item.scenarioId === activeScenarioId}
+                shortcutSelection={
+                  shortcutSelection?.scenarioId === item.scenarioId
+                    ? shortcutSelection
+                    : null
+                }
+                onActivate={() => setActiveScenarioId(item.scenarioId)}
                 onSave={async (input) => {
                   if (typeof window !== "undefined") {
                     window.localStorage.setItem(
@@ -1362,6 +1676,13 @@ function SessionExecutionRow(props: {
   testerName: string;
   environment: string;
   isSaving: boolean;
+  readOnly: boolean;
+  active: boolean;
+  shortcutSelection: {
+    status: RunStatus;
+    revision: number;
+  } | null;
+  onActivate: () => void;
   onSave: (input: RecordScenarioResultInput) => Promise<void>;
 }) {
   const [status, setStatus] = useState<RunStatus>(
@@ -1390,11 +1711,20 @@ function SessionExecutionRow(props: {
     setSavedStatus(props.item.resolvedStatus);
   }, [props.item.resolvedStatus]);
 
+  useEffect(() => {
+    if (props.shortcutSelection) {
+      setStatus(props.shortcutSelection.status);
+      setSaveState("idle");
+    }
+  }, [props.shortcutSelection]);
+
   return (
     <tr
+      onClick={props.onActivate}
       className={cn(
         "border-b border-border align-top last:border-b-0",
-        savedStatus ? "bg-card" : "bg-muted/10"
+        savedStatus ? "bg-card" : "bg-muted/10",
+        props.active && !props.readOnly && "ring-2 ring-inset ring-primary/50"
       )}
     >
       <StepCell
@@ -1417,6 +1747,7 @@ function SessionExecutionRow(props: {
           <Select
             aria-label={`Status for ${props.item.scenarioTitle}`}
             value={status}
+            disabled={props.readOnly}
             onChange={(event) => {
               setStatus(event.target.value as RunStatus);
               setSaveState("idle");
@@ -1443,6 +1774,7 @@ function SessionExecutionRow(props: {
           <Textarea
             aria-label={`Notes for ${props.item.scenarioTitle}`}
             value={notes}
+            disabled={props.readOnly}
             onChange={(event) => {
               setNotes(event.target.value);
               setSaveState("idle");
@@ -1450,14 +1782,24 @@ function SessionExecutionRow(props: {
             className="min-h-24 resize-y"
             placeholder="Observed behavior, setup notes, or blockers"
           />
-          <RefsDialog
-            scenarioTitle={props.item.scenarioTitle}
-            attachments={attachments}
-            onChange={(nextAttachments) => {
-              setAttachments(nextAttachments);
-              setSaveState("idle");
-            }}
-          />
+          {props.readOnly ? (
+            <span className="text-xs text-muted-foreground">
+              {
+                attachments.filter((attachment) => attachment.value.trim())
+                  .length
+              }{" "}
+              refs
+            </span>
+          ) : (
+            <RefsDialog
+              scenarioTitle={props.item.scenarioTitle}
+              attachments={attachments}
+              onChange={(nextAttachments) => {
+                setAttachments(nextAttachments);
+                setSaveState("idle");
+              }}
+            />
+          )}
         </div>
       </td>
       <td className="border-l border-border px-3 py-3">
@@ -1467,6 +1809,7 @@ function SessionExecutionRow(props: {
             size="sm"
             disabled={
               props.isSaving ||
+              props.readOnly ||
               saveState === "saving" ||
               props.testerName.trim().length === 0 ||
               !props.item.isCurrentSpecAvailable
@@ -1496,11 +1839,13 @@ function SessionExecutionRow(props: {
               })();
             }}
           >
-            {saveState === "saving" || props.isSaving
-              ? "Saving..."
-              : props.item.isCurrentSpecAvailable
-                ? "Save"
-                : "Unavailable"}
+            {props.readOnly
+              ? "Locked"
+              : saveState === "saving" || props.isSaving
+                ? "Saving..."
+                : props.item.isCurrentSpecAvailable
+                  ? "Save"
+                  : "Unavailable"}
           </Button>
           <span
             className={cn(
@@ -1529,6 +1874,114 @@ function SessionExecutionRow(props: {
       </td>
     </tr>
   );
+}
+
+function RunCompletionSummary(props: {
+  session: ExecutionSessionDetailDto;
+  onRetry: () => Promise<void>;
+}) {
+  const counts = countRunStatuses(props.session);
+  const retryCount = counts.failed + counts.blocked;
+  const testers = uniqueStrings(
+    props.session.items.flatMap((item) =>
+      item.latestResult?.testerName ? [item.latestResult.testerName] : []
+    )
+  );
+  const environments = uniqueStrings(
+    props.session.items.flatMap((item) =>
+      item.latestResult?.environment ? [item.latestResult.environment] : []
+    )
+  );
+  const evidenceCount = props.session.items.reduce(
+    (total, item) => total + (item.latestResult?.attachments.length ?? 0),
+    0
+  );
+
+  return (
+    <section className="grid gap-3 rounded-lg border border-border bg-muted/25 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 className="font-semibold">Run completed</h4>
+          <p className="text-xs text-muted-foreground">
+            {props.session.completedAt
+              ? new Date(props.session.completedAt).toLocaleString()
+              : "Completion time unavailable"}
+          </p>
+        </div>
+        {retryCount > 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void props.onRetry()}
+          >
+            Retry failed / blocked ({retryCount})
+          </Button>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        {runStatusOptions.map((status) => (
+          <Badge key={status} variant="outline">
+            {status}: {counts[status]}
+          </Badge>
+        ))}
+      </div>
+      <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+        <div>
+          <dt className="font-medium text-foreground">Git</dt>
+          <dd>{formatGitContext(props.session.gitContext)}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-foreground">Environment</dt>
+          <dd>{environments.join(", ") || "not recorded"}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-foreground">Testers</dt>
+          <dd>{testers.join(", ") || "not recorded"}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-foreground">Evidence</dt>
+          <dd>{evidenceCount} refs</dd>
+        </div>
+        {props.session.baseRunId ? (
+          <div className="sm:col-span-2">
+            <dt className="font-medium text-foreground">Retry of</dt>
+            <dd className="font-mono">{props.session.baseRunId}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </section>
+  );
+}
+
+function countRunStatuses(
+  session: ExecutionSessionDetailDto
+): Record<RunStatus | "not-run", number> {
+  const counts: Record<RunStatus | "not-run", number> = {
+    passed: 0,
+    failed: 0,
+    blocked: 0,
+    skipped: 0,
+    "not-run": 0
+  };
+  for (const item of session.items) {
+    counts[item.resolvedStatus ?? "not-run"] += 1;
+  }
+  return counts;
+}
+
+function shortcutRunStatus(key: string): RunStatus | null {
+  const shortcuts: Record<string, RunStatus> = {
+    p: "passed",
+    f: "failed",
+    b: "blocked",
+    s: "skipped"
+  };
+  return shortcuts[key.toLowerCase()] ?? null;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)].sort();
 }
 
 function StepCell(props: {
@@ -2034,7 +2487,15 @@ function flattenScenarios(
 
 function filterFeatures(
   features: CatalogFeatureNode[],
-  filters: { query: string; tag: string; environment: string }
+  filters: {
+    query: string;
+    tag: string;
+    environment: string;
+    domain: string;
+    lifecycle: string;
+    identity: string;
+    status: string;
+  }
 ): CatalogFeatureNode[] {
   const query = filters.query.trim().replace(/^@/, "").toLowerCase();
 
@@ -2044,7 +2505,25 @@ function filterFeatures(
     const matchesFeatureEnvironment =
       !filters.environment ||
       feature.metadata.environments.includes(filters.environment);
-    if (!matchesFeatureTag || !matchesFeatureEnvironment) {
+    const matchesDomain =
+      !filters.domain || feature.metadata.domain === filters.domain;
+    const matchesLifecycle =
+      !filters.lifecycle || feature.metadata.lifecycle === filters.lifecycle;
+    const matchesIdentity =
+      !filters.identity || feature.identity.source === filters.identity;
+    const matchesStatus =
+      !filters.status ||
+      (filters.status === "not-run"
+        ? feature.status === null
+        : feature.status === filters.status);
+    if (
+      !matchesFeatureTag ||
+      !matchesFeatureEnvironment ||
+      !matchesDomain ||
+      !matchesLifecycle ||
+      !matchesIdentity ||
+      !matchesStatus
+    ) {
       return [];
     }
 
