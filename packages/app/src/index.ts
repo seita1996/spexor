@@ -5,6 +5,7 @@ import {
   type FeatureVerification,
   type EvidenceRef,
   type FeatureMetadata,
+  type GitContext,
   type LatestScenarioResult,
   type ParseHealth,
   type ParseIssue,
@@ -16,6 +17,7 @@ import {
   type StepSpec,
   summarizeLatestStatuses
 } from "@spexor/domain";
+import { captureGitContext } from "@spexor/git";
 import {
   parseSpecFile,
   scanSpecFiles,
@@ -160,6 +162,7 @@ export interface ExecutionSessionListItemDto {
   resolvedCount: number;
   nextScenarioId: string | null;
   nextFeatureId: string | null;
+  gitContext: GitContext;
 }
 
 export interface ExecutionSessionItemDto {
@@ -171,8 +174,10 @@ export interface ExecutionSessionItemDto {
   sourceLine?: number | null;
   steps?: StepSpec[] | undefined;
   environments: string[];
+  specHash: string;
   latestResult: LatestScenarioResult | null;
   resolvedStatus: RunStatus | null;
+  isCurrentSpecAvailable: boolean;
   isStale: boolean;
 }
 
@@ -337,12 +342,6 @@ export async function createSpexorApp(
     }
 
     const sessionItems = items.map((item) => {
-      const feature = database.getFeature(item.featureKey);
-      const scenario = database.getScenario(item.scenarioKey);
-      const metadata = feature
-        ? parseJson<FeatureMetadata>(feature.metadataJson, emptyMetadata())
-        : emptyMetadata();
-
       return {
         scenarioId: item.scenarioKey,
         featureId: item.featureKey,
@@ -350,11 +349,13 @@ export async function createSpexorApp(
         scenarioTitle: item.scenarioTitle,
         sortOrder: item.sortOrder,
         sourceLine: item.sourceLine,
-        steps: scenario ? parseJson<StepSpec[]>(scenario.stepsJson, []) : [],
-        environments: metadata.environments,
+        steps: parseJson<StepSpec[]>(item.stepsSnapshotJson, []),
+        environments: parseJson<string[]>(item.environmentsSnapshotJson, []),
+        specHash: item.specHash,
         latestResult: latestResults.get(item.scenarioKey) ?? null,
         resolvedStatus: item.resolvedStatus,
-        isStale: !item.isScenarioActive
+        isCurrentSpecAvailable: item.isCurrentSpecAvailable,
+        isStale: item.isStale
       };
     });
 
@@ -370,6 +371,7 @@ export async function createSpexorApp(
       resolvedCount: session.resolvedCount,
       nextScenarioId: nextItem?.scenarioKey ?? null,
       nextFeatureId: nextItem?.featureKey ?? null,
+      gitContext: parseGitContext(session.gitContextJson, session.createdAt),
       filters: parseJson<ExecutionSessionFilters>(session.filtersJson, {
         search: "",
         tag: "",
@@ -712,17 +714,28 @@ export async function createSpexorApp(
         matchesSpecsFilters(item, input.filters)
       );
 
-      const items = matchingSpecs.flatMap((spec) =>
-        database.getFeatureScenarios(spec.featureId).map((scenario) => ({
+      const items = matchingSpecs.flatMap((spec) => {
+        const feature = database.getFeature(spec.featureId);
+        const background = feature
+          ? parseJson<StepSpec[]>(feature.backgroundJson, [])
+          : [];
+
+        return database.getFeatureScenarios(spec.featureId).map((scenario) => ({
           scenarioKey: scenario.scenarioKey,
           featureKey: scenario.featureKey,
           featureTitle: spec.title,
           scenarioTitle: scenario.title,
+          stepsSnapshot: [
+            ...background,
+            ...parseJson<StepSpec[]>(scenario.stepsJson, [])
+          ],
+          environmentsSnapshot: spec.metadata.environments,
+          specHash: scenario.specHash,
           sourceLine: scenario.sourceLine,
           exampleIndex: scenario.exampleIndex,
           sortOrder: scenario.sortOrder
-        }))
-      );
+        }));
+      });
 
       const filteredItems =
         selectedScenarioIds.size > 0
@@ -741,11 +754,13 @@ export async function createSpexorApp(
       }
 
       const createdAt = new Date();
+      const gitContext = await captureGitContext({ cwd: config.rootDir });
       const session = database.createExecutionSession({
         name:
           input.name?.trim() ||
           buildExecutionSessionName(createdAt, input.filters),
         filtersJson: JSON.stringify(input.filters),
+        gitContext,
         items: sortedItems
       });
 
@@ -778,7 +793,8 @@ export async function createSpexorApp(
           itemGroups
             .get(session.id)
             ?.find((item) => item.scenarioKey === session.nextScenarioKey)
-            ?.featureKey ?? null
+            ?.featureKey ?? null,
+        gitContext: parseGitContext(session.gitContextJson, session.createdAt)
       }));
     },
     getExecutionSession: getExecutionSessionDetail,
@@ -821,6 +837,16 @@ function emptyMetadata(): FeatureMetadata {
     verification: defaultVerification(),
     extra: {}
   };
+}
+
+function parseGitContext(
+  value: string,
+  fallbackCapturedAt: string
+): GitContext {
+  return parseJson<GitContext>(value, {
+    available: false,
+    capturedAt: fallbackCapturedAt
+  });
 }
 
 function defaultVerification(): FeatureVerification {

@@ -1,6 +1,6 @@
 {
-  "lastReviewedOn": "2026-07-11",
-  "currentFocus": "Capture Git context and immutable specification snapshots for commit-aware verification runs.",
+  "lastReviewedOn": "2026-07-17",
+  "currentFocus": "Create a read-optimized Explore mode for browsing version-controlled specifications.",
   "startupRoutine": [
     "Confirm cwd and clean/dirty git state.",
     "Read the last five commits.",
@@ -36,7 +36,7 @@
     {
       "id": "commit-aware-runs",
       "priority": "high",
-      "status": "todo",
+      "status": "done",
       "summary": "Capture Git context and immutable specification snapshots for verification runs."
     },
     {

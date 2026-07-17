@@ -4,6 +4,7 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 
 - `packages/config`: loads `spexor.config.ts`, applies defaults, resolves paths
 - `packages/domain`: pure types and helpers
+- `packages/git`: captures repository, revision, branch, and dirty state through the Git CLI
 - `packages/parser`: scans `.feature` files, parses YAML frontmatter and Gherkin, returns structured issues
 - `packages/db`: initializes SQLite, stores parsed snapshots and execution history
 - `packages/app`: orchestrates config, parser, DB, and watcher behavior into DTOs for the UI
@@ -33,8 +34,10 @@ Spexor uses a TypeScript `pnpm` workspace with explicit package boundaries:
 3. The parser scans `specDir` and parses each `.feature` file.
 4. Parsed feature snapshots are upserted into SQLite.
 5. The UI fetches list/detail/history DTOs from the local API.
-6. Saving a manual run inserts a `run`, a `run_result`, and any evidence references.
-7. When configured, Spexor can export runs as NDJSON for the shared hub and query shared history back over HTTP.
+6. Creating a verification Run captures Git context and immutable Scenario snapshots.
+7. Saving a manual result inserts a `run`, a `run_result`, and any evidence references.
+8. Run reads compare saved and active Scenario fingerprints to expose stale or deleted source specifications.
+9. When configured, Spexor can export runs as NDJSON for the shared hub and query shared history back over HTTP.
 
 ## Scenario identity
 

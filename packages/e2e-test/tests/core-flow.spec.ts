@@ -53,6 +53,7 @@ test.describe("Spexor core flow", () => {
     await page.getByRole("button", { name: "Start feature run" }).click();
 
     await expect(page.getByText("Run Explorer")).toBeVisible();
+    await expect(page.getByText(/Git .* worktree/)).toBeVisible();
     await expect(
       page
         .getByLabel("Workspace breadcrumb")

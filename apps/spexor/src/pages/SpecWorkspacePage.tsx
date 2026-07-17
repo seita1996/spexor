@@ -938,6 +938,9 @@ function SessionProgressSummary(props: { session: ExecutionSessionDetailDto }) {
       <div className="text-muted-foreground">
         {props.session.status === "completed" ? "Completed" : "Active run"}
       </div>
+      <div className="text-muted-foreground">
+        {formatGitContext(props.session.gitContext)}
+      </div>
     </section>
   );
 }
@@ -964,6 +967,38 @@ function ScenarioWorkspace(props: {
   if (props.loading && !props.scenario) {
     return (
       <StateBlock className="m-4">Loading scenario workspace...</StateBlock>
+    );
+  }
+
+  if (props.executionSession && (!props.scenario || !props.feature)) {
+    return (
+      <section className="min-h-0 overflow-y-auto bg-background">
+        <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:p-6">
+          <header className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-4">
+            <div className="grid gap-1">
+              <h2 className="text-lg font-semibold">Historical run snapshot</h2>
+              <p className="text-sm text-muted-foreground">
+                Current source specifications are unavailable. The immutable
+                steps captured when this run started remain readable.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={props.onExitSession}
+            >
+              Back to workspace
+            </Button>
+          </header>
+          <SessionExecutionGrid
+            session={props.executionSession}
+            isSaving={props.saving}
+            saveError={props.saveError}
+            onSaveScenario={props.onSaveSessionScenario}
+          />
+        </div>
+      </section>
     );
   }
 
@@ -1396,7 +1431,9 @@ function SessionExecutionRow(props: {
           </Select>
           {props.item.isStale ? (
             <Badge variant="outline" className="w-fit">
-              stale
+              {props.item.isCurrentSpecAvailable
+                ? "stale · spec changed"
+                : "stale · source removed"}
             </Badge>
           ) : null}
         </div>
@@ -1431,7 +1468,8 @@ function SessionExecutionRow(props: {
             disabled={
               props.isSaving ||
               saveState === "saving" ||
-              props.testerName.trim().length === 0
+              props.testerName.trim().length === 0 ||
+              !props.item.isCurrentSpecAvailable
             }
             onClick={() => {
               void (async () => {
@@ -1458,7 +1496,11 @@ function SessionExecutionRow(props: {
               })();
             }}
           >
-            {saveState === "saving" || props.isSaving ? "Saving..." : "Save"}
+            {saveState === "saving" || props.isSaving
+              ? "Saving..."
+              : props.item.isCurrentSpecAvailable
+                ? "Save"
+                : "Unavailable"}
           </Button>
           <span
             className={cn(
@@ -2151,6 +2193,23 @@ function groupSessionSteps(
   }
 
   return groups;
+}
+
+function formatGitContext(
+  context: ExecutionSessionDetailDto["gitContext"]
+): string {
+  if (!context.available) {
+    return "Git context unavailable";
+  }
+
+  const revision = [
+    context.branch ?? "detached HEAD",
+    context.commitSha?.slice(0, 8)
+  ]
+    .filter(Boolean)
+    .join(" @ ");
+  const worktree = context.dirty ? "dirty worktree" : "clean worktree";
+  return `Git ${revision} · ${worktree}`;
 }
 
 function clamp(value: number, min: number, max: number): number {

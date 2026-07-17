@@ -143,6 +143,9 @@ importers:
       '@spexor/domain':
         specifier: workspace:*
         version: link:../domain
+      '@spexor/git':
+        specifier: workspace:*
+        version: link:../git
       '@spexor/parser':
         specifier: workspace:*
         version: link:../parser
@@ -175,6 +178,12 @@ importers:
       '@playwright/test':
         specifier: ^1.54.2
         version: 1.59.0
+
+  packages/git:
+    dependencies:
+      '@spexor/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/parser:
     dependencies:

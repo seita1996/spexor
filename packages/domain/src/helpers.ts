@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   FeatureSpec,
   LatestScenarioResult,
@@ -69,6 +70,25 @@ export function createScenarioCaseId(
   return exampleIndex === undefined
     ? scenarioId
     : `${scenarioId}::example-${exampleIndex}`;
+}
+
+export function createScenarioFingerprint(
+  feature: FeatureSpec,
+  scenario: ScenarioCaseSpec
+): string {
+  const payload = {
+    featureId: feature.id,
+    scenarioId: scenario.id,
+    scenarioTitle: scenario.title,
+    scenarioDescription: scenario.description,
+    backgroundSteps: feature.background.map(canonicalStep),
+    scenarioSteps: scenario.steps.map(canonicalStep),
+    exampleValues: sortRecord(scenario.exampleValues ?? {}),
+    tags: [...scenario.tags].sort(),
+    environments: [...feature.metadata.environments].sort()
+  };
+
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
 export function interpolateTemplate(
@@ -228,6 +248,19 @@ export function summarizeLatestStatuses(
     latestStatuses,
     aggregate: pickMostSevereStatus(latestStatuses)
   };
+}
+
+function canonicalStep(step: ScenarioCaseSpec["steps"][number]) {
+  return {
+    keyword: step.keyword,
+    text: step.text
+  };
+}
+
+function sortRecord(values: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(values).sort(([left], [right]) => left.localeCompare(right))
+  );
 }
 
 function slugifyAscii(value: string): string {

@@ -12,6 +12,7 @@ SQLite stores local execution history and cached parsed snapshots.
 
 - `scenarios`
   Stores active executable scenario cases keyed by stable Scenario ID (or an Outline case suffix) and records whether the ID is explicit or legacy.
+  Each row includes a canonical SHA-256 specification fingerprint.
   Regular scenarios map 1:1.
   Scenario Outline rows are expanded into concrete runnable cases.
 
@@ -25,13 +26,19 @@ SQLite stores local execution history and cached parsed snapshots.
 - `attachments`
   Stores evidence references only: file path or URL plus an optional label.
 
+- `execution_sessions`
+  Stores verification Run metadata, filters, progress, and the Git context captured at creation.
+
+- `execution_session_items`
+  Stores immutable Feature title, Scenario title, rendered steps, environments, and specification fingerprint for every Run item.
+
 ## Activity flags
 
 Feature and scenario snapshot rows use `is_active` flags so rescans can deactivate old records without deleting historical runs.
 
 ## Schema version
 
-SQLite `user_version` 2 introduces stable IDs as primary keys. Opening a pre-v2 database rebuilds the local database instead of attempting to preserve path-derived history. This is intentional: the database is a disposable local projection, while `.feature` files remain authoritative.
+SQLite `user_version` 3 introduces commit-aware Runs and immutable Scenario snapshots. Opening a pre-v3 database rebuilds the local database. This is intentional: backward compatibility is not maintained for the disposable local projection, while `.feature` files remain authoritative.
 
 ## Persistence boundaries
 

@@ -480,6 +480,14 @@ describe("SpecWorkspacePage", () => {
         resolvedCount: 0,
         nextScenarioId: "scenario-valid",
         nextFeatureId: "specs/manual/login.feature",
+        gitContext: {
+          available: true,
+          repositoryRoot: "/workspace",
+          branch: "main",
+          commitSha: "a".repeat(40),
+          dirty: true,
+          capturedAt: "2026-05-12T10:00:00.000Z"
+        },
         filters: {
           search: "",
           tag: "auth",
@@ -501,8 +509,10 @@ describe("SpecWorkspacePage", () => {
               { keyword: "Then", text: "the dashboard appears" }
             ],
             environments: ["mac-chrome"],
+            specHash: "b".repeat(64),
             latestResult: null,
             resolvedStatus: null,
+            isCurrentSpecAvailable: true,
             isStale: false
           }
         ]
@@ -517,6 +527,14 @@ describe("SpecWorkspacePage", () => {
         resolvedCount: 1,
         nextScenarioId: null,
         nextFeatureId: null,
+        gitContext: {
+          available: true,
+          repositoryRoot: "/workspace",
+          branch: "main",
+          commitSha: "a".repeat(40),
+          dirty: true,
+          capturedAt: "2026-05-12T10:00:00.000Z"
+        },
         filters: {
           search: "",
           tag: "auth",
@@ -538,8 +556,10 @@ describe("SpecWorkspacePage", () => {
               { keyword: "Then", text: "the dashboard appears" }
             ],
             environments: ["mac-chrome"],
+            specHash: "b".repeat(64),
             latestResult: null,
             resolvedStatus: "failed",
+            isCurrentSpecAvailable: true,
             isStale: false
           }
         ]
@@ -552,6 +572,9 @@ describe("SpecWorkspacePage", () => {
 
     await screen.findByText("Run Explorer");
     expect(screen.getAllByText("Auth session")).toHaveLength(2);
+    expect(
+      screen.getByText("Git main @ aaaaaaaa · dirty worktree")
+    ).toBeVisible();
     expect(screen.getByText(/0 \/ 1 scenarios resolved/)).toBeInTheDocument();
     expect(screen.getByText("Run execution")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Given" })).toBeVisible();
@@ -613,6 +636,60 @@ describe("SpecWorkspacePage", () => {
         ]
       })
     );
+  });
+
+  it("keeps deleted specifications readable from immutable run snapshots", async () => {
+    getSpecsMock.mockResolvedValue([]);
+    getSpecCatalogMock.mockResolvedValue({ items: [], features: [] });
+    getExecutionSessionMock.mockResolvedValue({
+      id: "session-deleted",
+      name: "Historical auth run",
+      status: "completed",
+      createdAt: "2026-05-12T10:00:00.000Z",
+      completedAt: "2026-05-12T10:05:00.000Z",
+      totalCount: 1,
+      resolvedCount: 1,
+      nextScenarioId: null,
+      nextFeatureId: null,
+      gitContext: {
+        available: false,
+        capturedAt: "2026-05-12T10:00:00.000Z"
+      },
+      filters: {
+        search: "",
+        tag: "auth",
+        environment: "mac-chrome",
+        priority: "high"
+      },
+      items: [
+        {
+          scenarioId: "authentication.login.valid-credentials",
+          featureId: "authentication.login",
+          featureTitle: "Login",
+          scenarioTitle: "Login with valid credentials",
+          sortOrder: 1,
+          sourceLine: 12,
+          steps: [
+            { keyword: "Given", text: "a registered user exists" },
+            { keyword: "Then", text: "the dashboard appears" }
+          ],
+          environments: ["mac-chrome"],
+          specHash: "c".repeat(64),
+          latestResult: null,
+          resolvedStatus: "passed",
+          isCurrentSpecAvailable: false,
+          isStale: true
+        }
+      ]
+    });
+
+    renderWorkspace("/sessions/session-deleted", "/sessions/:sessionId");
+
+    expect(await screen.findByText("Historical run snapshot")).toBeVisible();
+    expect(screen.getByText("the dashboard appears")).toBeVisible();
+    expect(screen.getByText("stale · source removed")).toBeVisible();
+    expect(screen.getByText("Git context unavailable")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Unavailable" })).toBeDisabled();
   });
 });
 

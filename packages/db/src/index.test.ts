@@ -6,13 +6,15 @@ import type { ParsedSpecFile } from "@spexor/domain";
 import { initDatabase } from "./index";
 
 describe("@spexor/db", () => {
-  it("rebuilds pre-identity databases at schema version 2", async () => {
+  it("rebuilds pre-snapshot databases at schema version 3", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "spexor-db-v1-"));
     const dbPath = path.join(tempRoot, "spexor.db");
     const legacy = new DatabaseSync(dbPath);
-    legacy.exec(
-      "CREATE TABLE spec_files (relative_path TEXT PRIMARY KEY); INSERT INTO spec_files VALUES ('legacy.feature');"
-    );
+    legacy.exec(`
+      PRAGMA user_version = 2;
+      CREATE TABLE spec_files (relative_path TEXT PRIMARY KEY);
+      INSERT INTO spec_files VALUES ('legacy.feature');
+    `);
     legacy.close();
 
     const database = initDatabase(dbPath);
@@ -29,7 +31,7 @@ describe("@spexor/db", () => {
     const version = migrated.prepare("PRAGMA user_version").get() as {
       user_version: number;
     };
-    expect(version.user_version).toBe(2);
+    expect(version.user_version).toBe(3);
     migrated.close();
 
     const reopened = initDatabase(dbPath);
@@ -146,12 +148,26 @@ describe("@spexor/db", () => {
         environment: "",
         priority: "high"
       }),
+      gitContext: {
+        available: true,
+        repositoryRoot: tempRoot,
+        branch: "main",
+        commitSha: "a".repeat(40),
+        dirty: false,
+        capturedAt: "2026-07-17T00:00:00.000Z"
+      },
       items: [
         {
           scenarioKey: scenario.scenarioKey,
           featureKey: parsed.feature?.id ?? "",
           featureTitle: "Login",
           scenarioTitle: "Login with valid credentials",
+          stepsSnapshot: [
+            { keyword: "Given", text: "I open the login page" },
+            { keyword: "Then", text: "I should see the dashboard" }
+          ],
+          environmentsSnapshot: ["mac-chrome"],
+          specHash: scenario.specHash,
           sourceLine: 10,
           sortOrder: 1
         }
@@ -160,6 +176,10 @@ describe("@spexor/db", () => {
 
     expect(session.totalCount).toBe(1);
     expect(session.status).toBe("active");
+    expect(JSON.parse(session.gitContextJson)).toMatchObject({
+      branch: "main",
+      dirty: false
+    });
 
     database.linkSessionScenarioResult(session.id, scenario.scenarioKey, saved);
 
@@ -172,6 +192,11 @@ describe("@spexor/db", () => {
     expect(sessionItems).toHaveLength(1);
     expect(sessionItems[0]?.resolvedStatus).toBe("passed");
     expect(sessionItems[0]?.latestRunResultId).toBe(saved.id);
+    expect(JSON.parse(sessionItems[0]?.stepsSnapshotJson ?? "[]")).toHaveLength(
+      2
+    );
+    expect(sessionItems[0]?.isCurrentSpecAvailable).toBe(true);
+    expect(sessionItems[0]?.isStale).toBe(false);
 
     const syncState = database.upsertSharedSyncState({
       projectId: "qa-console",
@@ -201,6 +226,15 @@ describe("@spexor/db", () => {
     expect(
       database.getScenarioRunHistory("authentication.login.valid-credentials")
     ).toHaveLength(1);
+    expect(database.getExecutionSessionItems(session.id)[0]?.isStale).toBe(
+      true
+    );
+
+    database.saveParsedSpecs([]);
+    const deletedSpecItem = database.getExecutionSessionItems(session.id)[0];
+    expect(deletedSpecItem?.isCurrentSpecAvailable).toBe(false);
+    expect(deletedSpecItem?.isStale).toBe(true);
+    expect(deletedSpecItem?.scenarioTitle).toBe("Login with valid credentials");
 
     database.close();
   });

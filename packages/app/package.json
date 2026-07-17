@@ -20,6 +20,7 @@
     "@spexor/config": "workspace:*",
     "@spexor/db": "workspace:*",
     "@spexor/domain": "workspace:*",
+    "@spexor/git": "workspace:*",
     "@spexor/parser": "workspace:*",
     "@spexor/results": "workspace:*",
     "chokidar": "^5.0.0"

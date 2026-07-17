@@ -7,9 +7,11 @@ import {
   type StatementSync
 } from "node:sqlite";
 import {
+  createScenarioFingerprint,
   type EvidenceRef,
   expandFeatureCases,
   type FeatureSpec,
+  type GitContext,
   type LatestScenarioResult,
   normalizePath,
   type ParsedSpecFile,
@@ -63,6 +65,7 @@ export interface ScenarioRecord {
   exampleValuesJson: string | null;
   stepsJson: string;
   tagsJson: string;
+  specHash: string;
   sourceLine: number | null;
   sortOrder: number;
   isActive: boolean;
@@ -95,6 +98,7 @@ export interface ExecutionSessionRecord {
   createdAt: string;
   completedAt: string | null;
   filtersJson: string;
+  gitContextJson: string;
   totalCount: number;
 }
 
@@ -104,13 +108,17 @@ export interface ExecutionSessionItemRecord {
   featureKey: string;
   featureTitle: string;
   scenarioTitle: string;
+  stepsSnapshotJson: string;
+  environmentsSnapshotJson: string;
+  specHash: string;
   sourceLine: number | null;
   exampleIndex: number | null;
   sortOrder: number;
   latestRunResultId: string | null;
   resolvedStatus: RunStatus | null;
   resolvedAt: string | null;
-  isScenarioActive: boolean;
+  isCurrentSpecAvailable: boolean;
+  isStale: boolean;
 }
 
 export interface SharedSyncStateRecord {
@@ -133,11 +141,15 @@ export interface RecordScenarioRunInput {
 export interface CreateExecutionSessionInput {
   name: string;
   filtersJson: string;
+  gitContext: GitContext;
   items: Array<{
     scenarioKey: string;
     featureKey: string;
     featureTitle: string;
     scenarioTitle: string;
+    stepsSnapshot: StepSpec[];
+    environmentsSnapshot: string[];
+    specHash: string;
     sourceLine?: number | null;
     exampleIndex?: number | null;
     sortOrder: number;
@@ -231,6 +243,7 @@ interface ScenarioRow {
   example_values_json: unknown;
   steps_json: unknown;
   tags_json: unknown;
+  spec_hash: unknown;
   source_line: unknown;
   sort_order: unknown;
   is_active: unknown;
@@ -266,6 +279,7 @@ interface ExecutionSessionRow {
   created_at: unknown;
   completed_at: unknown;
   filters_json: unknown;
+  git_context_json: unknown;
   total_count: unknown;
 }
 
@@ -280,13 +294,17 @@ interface ExecutionSessionItemRow {
   feature_key: unknown;
   feature_title: unknown;
   scenario_title: unknown;
+  steps_snapshot_json: unknown;
+  environments_snapshot_json: unknown;
+  spec_hash: unknown;
   source_line: unknown;
   example_index: unknown;
   sort_order: unknown;
   latest_run_result_id: unknown;
   resolved_status: unknown;
   resolved_at: unknown;
-  scenario_active: unknown;
+  current_spec_available: unknown;
+  stale: unknown;
 }
 
 interface SharedSyncStateRow {
@@ -344,6 +362,7 @@ const schema = `
     example_values_json TEXT,
     steps_json TEXT NOT NULL,
     tags_json TEXT NOT NULL,
+    spec_hash TEXT NOT NULL,
     source_line INTEGER,
     sort_order INTEGER NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -389,6 +408,7 @@ const schema = `
     created_at TEXT NOT NULL,
     completed_at TEXT,
     filters_json TEXT NOT NULL,
+    git_context_json TEXT NOT NULL,
     total_count INTEGER NOT NULL
   );
 
@@ -398,6 +418,9 @@ const schema = `
     feature_key TEXT NOT NULL,
     feature_title TEXT NOT NULL,
     scenario_title TEXT NOT NULL,
+    steps_snapshot_json TEXT NOT NULL,
+    environments_snapshot_json TEXT NOT NULL,
+    spec_hash TEXT NOT NULL,
     source_line INTEGER,
     example_index INTEGER,
     sort_order INTEGER NOT NULL,
@@ -431,9 +454,9 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   const database = new DatabaseSync(dbPath);
   database.exec("PRAGMA journal_mode = WAL;");
   database.exec("PRAGMA foreign_keys = ON;");
-  resetLegacySchema(database);
+  resetIncompatibleSchema(database);
   database.exec(schema);
-  database.exec("PRAGMA user_version = 2;");
+  database.exec("PRAGMA user_version = 3;");
 
   const upsertSpecFile = database.prepare(`
     INSERT INTO spec_files (
@@ -478,10 +501,10 @@ export function initDatabase(dbPath: string): SpexorDatabase {
   const upsertScenario = database.prepare(`
     INSERT INTO scenarios (
       scenario_key, identity_source, feature_key, group_key, group_title, title, description, kind, group_kind, outline_title,
-      example_name, example_index, example_values_json, steps_json, tags_json, source_line, sort_order, is_active, synced_at
+      example_name, example_index, example_values_json, steps_json, tags_json, spec_hash, source_line, sort_order, is_active, synced_at
     ) VALUES (
       @scenario_key, @identity_source, @feature_key, @group_key, @group_title, @title, @description, @kind, @group_kind, @outline_title,
-      @example_name, @example_index, @example_values_json, @steps_json, @tags_json, @source_line, @sort_order, 1, @synced_at
+      @example_name, @example_index, @example_values_json, @steps_json, @tags_json, @spec_hash, @source_line, @sort_order, 1, @synced_at
     )
     ON CONFLICT(scenario_key) DO UPDATE SET
       identity_source = excluded.identity_source,
@@ -498,6 +521,7 @@ export function initDatabase(dbPath: string): SpexorDatabase {
       example_values_json = excluded.example_values_json,
       steps_json = excluded.steps_json,
       tags_json = excluded.tags_json,
+      spec_hash = excluded.spec_hash,
       source_line = excluded.source_line,
       sort_order = excluded.sort_order,
       is_active = 1,
@@ -884,23 +908,26 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         database
           .prepare(`
             INSERT INTO execution_sessions (
-              id, name, status, created_at, completed_at, filters_json, total_count
-            ) VALUES (?, ?, 'active', ?, NULL, ?, ?)
+              id, name, status, created_at, completed_at, filters_json,
+              git_context_json, total_count
+            ) VALUES (?, ?, 'active', ?, NULL, ?, ?, ?)
           `)
           .run(
             sessionId,
             input.name,
             now,
             input.filtersJson,
+            JSON.stringify(input.gitContext),
             input.items.length
           );
 
         const insertItem = database.prepare(`
           INSERT INTO execution_session_items (
             session_id, scenario_key, feature_key, feature_title, scenario_title,
+            steps_snapshot_json, environments_snapshot_json, spec_hash,
             source_line, example_index, sort_order, latest_run_result_id,
             resolved_status, resolved_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
         `);
 
         for (const item of input.items) {
@@ -910,6 +937,9 @@ export function initDatabase(dbPath: string): SpexorDatabase {
             item.featureKey,
             item.featureTitle,
             item.scenarioTitle,
+            JSON.stringify(item.stepsSnapshot),
+            JSON.stringify(item.environmentsSnapshot),
+            item.specHash,
             item.sourceLine ?? null,
             item.exampleIndex ?? null,
             item.sortOrder
@@ -980,9 +1010,14 @@ export function initDatabase(dbPath: string): SpexorDatabase {
         .prepare(`
           SELECT
             items.*,
-            COALESCE(s.is_active, 0) AS scenario_active
+            CASE WHEN s.scenario_key IS NULL THEN 0 ELSE 1 END AS current_spec_available,
+            CASE
+              WHEN s.scenario_key IS NULL OR s.spec_hash <> items.spec_hash THEN 1
+              ELSE 0
+            END AS stale
           FROM execution_session_items items
-          LEFT JOIN scenarios s ON s.scenario_key = items.scenario_key
+          LEFT JOIN scenarios s
+            ON s.scenario_key = items.scenario_key AND s.is_active = 1
           WHERE items.session_id = ?
           ORDER BY items.sort_order ASC
         `)
@@ -1130,7 +1165,7 @@ function saveFeatureSnapshot(
 
       sortOrder += 1;
       upsertScenario.run(
-        buildScenarioInsertRecord(feature.id, scenario, scenarioCase, sortOrder)
+        buildScenarioInsertRecord(feature, scenario, scenarioCase, sortOrder)
       );
       continue;
     }
@@ -1138,14 +1173,14 @@ function saveFeatureSnapshot(
     for (const scenarioCase of groupCases) {
       sortOrder += 1;
       upsertScenario.run(
-        buildScenarioInsertRecord(feature.id, scenario, scenarioCase, sortOrder)
+        buildScenarioInsertRecord(feature, scenario, scenarioCase, sortOrder)
       );
     }
   }
 }
 
 function buildScenarioInsertRecord(
-  featureKey: string,
+  feature: FeatureSpec,
   scenario: FeatureSpec["scenarios"][number],
   scenarioCase: ScenarioCaseSpec,
   sortOrder: number
@@ -1153,7 +1188,7 @@ function buildScenarioInsertRecord(
   return {
     scenario_key: scenarioCase.id,
     identity_source: scenarioCase.identity.source,
-    feature_key: featureKey,
+    feature_key: feature.id,
     group_key: scenario.id,
     group_title: scenario.title,
     title: scenarioCase.title,
@@ -1168,6 +1203,7 @@ function buildScenarioInsertRecord(
       : null,
     steps_json: JSON.stringify(scenarioCase.steps),
     tags_json: JSON.stringify(scenarioCase.tags),
+    spec_hash: createScenarioFingerprint(feature, scenarioCase),
     source_line: scenarioCase.location?.line ?? null,
     sort_order: sortOrder,
     synced_at: new Date().toISOString()
@@ -1235,7 +1271,7 @@ function toLatestResultRecord(
   };
 }
 
-function resetLegacySchema(database: DatabaseSync): void {
+function resetIncompatibleSchema(database: DatabaseSync): void {
   const versionRow = database.prepare("PRAGMA user_version").get() as
     | { user_version?: unknown }
     | undefined;
@@ -1248,7 +1284,7 @@ function resetLegacySchema(database: DatabaseSync): void {
       .get()
   );
 
-  if (!hasTables || version >= 2) {
+  if (!hasTables || version >= 3) {
     return;
   }
 
@@ -1318,6 +1354,7 @@ function toScenarioRecord(row: ScenarioRow): ScenarioRecord {
       : null,
     stepsJson: String(row.steps_json),
     tagsJson: String(row.tags_json),
+    specHash: String(row.spec_hash),
     sourceLine: row.source_line === null ? null : Number(row.source_line),
     sortOrder: Number(row.sort_order),
     isActive: Number(row.is_active) === 1,
@@ -1335,6 +1372,7 @@ function toExecutionSessionRecord(
     createdAt: String(row.created_at),
     completedAt: row.completed_at ? String(row.completed_at) : null,
     filtersJson: String(row.filters_json),
+    gitContextJson: String(row.git_context_json),
     totalCount: Number(row.total_count)
   };
 }
@@ -1358,6 +1396,9 @@ function toExecutionSessionItemRecord(
     featureKey: String(row.feature_key),
     featureTitle: String(row.feature_title),
     scenarioTitle: String(row.scenario_title),
+    stepsSnapshotJson: String(row.steps_snapshot_json),
+    environmentsSnapshotJson: String(row.environments_snapshot_json),
+    specHash: String(row.spec_hash),
     sourceLine: row.source_line === null ? null : Number(row.source_line),
     exampleIndex: row.example_index === null ? null : Number(row.example_index),
     sortOrder: Number(row.sort_order),
@@ -1368,7 +1409,8 @@ function toExecutionSessionItemRecord(
       ? (String(row.resolved_status) as RunStatus)
       : null,
     resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
-    isScenarioActive: Number(row.scenario_active) === 1
+    isCurrentSpecAvailable: Number(row.current_spec_available) === 1,
+    isStale: Number(row.stale) === 1
   };
 }
 

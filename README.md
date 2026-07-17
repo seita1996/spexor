@@ -101,6 +101,7 @@ export default {
 4. Save the result.
 
 Execution history persists in `.spexor/spexor.db` across restarts.
+Each Run captures the current Git branch, commit, dirty state, and immutable Scenario steps so historical verification remains readable after specification changes.
 
 ## Shared hub deployment
 
@@ -130,5 +131,6 @@ Codex-centered development in this repository uses deterministic harness command
 - [ADR 0003: Low-cost shared results hub](./docs/adr/0003-low-cost-shared-results-hub.md)
 - [ADR 0004: CLI setup and hub deploy](./docs/adr/0004-cli-setup-and-hub-deploy.md)
 - [ADR 0005: Stable specification identity](./docs/adr/0005-stable-specification-identity.md)
+- [ADR 0006: Commit-aware verification runs](./docs/adr/0006-commit-aware-verification-runs.md)
 - [Spec format](./docs/spec-format.md)
 - [Local data model](./docs/local-data-model.md)

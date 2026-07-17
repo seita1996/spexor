@@ -1,5 +1,6 @@
 import {
   createScenarioCaseId,
+  createScenarioFingerprint,
   createScenarioStableId,
   expandScenarioCases,
   interpolateTemplate,
@@ -7,7 +8,7 @@ import {
   slugify,
   summarizeLatestStatuses
 } from "./helpers";
-import type { ScenarioSpec } from "./types";
+import type { FeatureSpec, ScenarioCaseSpec, ScenarioSpec } from "./types";
 
 describe("@spexor/domain helpers", () => {
   it("slugifies repeated separators without regex backtracking", () => {
@@ -74,6 +75,73 @@ describe("@spexor/domain helpers", () => {
         title: "Reject wrong password"
       }
     ]);
+  });
+
+  it("creates canonical scenario fingerprints", () => {
+    const feature: FeatureSpec = {
+      id: "authentication.login",
+      identity: {
+        id: "authentication.login",
+        source: "explicit",
+        stable: true
+      },
+      filePath: "/workspace/specs/login.feature",
+      relativePath: "specs/login.feature",
+      title: "Login",
+      description: "",
+      metadata: {
+        id: "authentication.login",
+        lifecycle: "active",
+        environments: ["staging-firefox", "staging-chrome"],
+        tags: [],
+        related: [],
+        verification: { manualOnly: true, automated: [] },
+        extra: {}
+      },
+      background: [{ keyword: "Given", text: "a registered user" }],
+      scenarios: []
+    };
+    const scenario: ScenarioCaseSpec = {
+      id: "authentication.login.validation::example-1",
+      identity: {
+        id: "authentication.login.validation",
+        source: "explicit",
+        stable: true
+      },
+      scenarioId: "authentication.login.validation",
+      title: "Reject missing email",
+      description: "Invalid credentials are rejected.",
+      kind: "outline-example",
+      tags: ["validation", "auth"],
+      steps: [{ keyword: "Then", text: "show missing email" }],
+      exampleIndex: 1,
+      exampleValues: { reason: "missing email", role: "admin" }
+    };
+
+    const hash = createScenarioFingerprint(feature, scenario);
+    const reorderedHash = createScenarioFingerprint(
+      {
+        ...feature,
+        metadata: {
+          ...feature.metadata,
+          environments: [...feature.metadata.environments].reverse()
+        }
+      },
+      {
+        ...scenario,
+        tags: [...scenario.tags].reverse(),
+        exampleValues: { role: "admin", reason: "missing email" }
+      }
+    );
+
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(reorderedHash).toBe(hash);
+    expect(
+      createScenarioFingerprint(feature, {
+        ...scenario,
+        title: "Reject a missing email"
+      })
+    ).not.toBe(hash);
   });
 
   it("interpolates placeholders and preserves incomplete markers", () => {

@@ -176,6 +176,10 @@ Feature: User login
     expect(session.totalCount).toBe(1);
     expect(session.items[0]?.scenarioId).toBe(scenarioId);
     expect(session.items[0]?.environments).toEqual(["mac-chrome"]);
+    expect(session.items[0]?.steps).toHaveLength(2);
+    expect(session.items[0]?.specHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(session.items[0]?.isStale).toBe(false);
+    expect(session.gitContext.available).toBe(false);
 
     await app.recordSessionScenarioResult(session.id, scenarioId, {
       testerName: "qa@example.com",
@@ -204,6 +208,32 @@ Feature: User login
         }
       })
     ).rejects.toThrow("No scenarios matched the current filters.");
+
+    const specPath = path.join(tempRoot, "specs/manual/login.feature");
+    const originalSpec = await fs.readFile(specPath, "utf8");
+    await fs.writeFile(
+      specPath,
+      originalSpec.replace(
+        "Then I should see the dashboard",
+        "Then I should see the home page"
+      )
+    );
+    await app.syncSpecsFromFilesystem();
+    const staleSession = await app.getExecutionSession(session.id);
+    expect(staleSession?.items[0]?.isCurrentSpecAvailable).toBe(true);
+    expect(staleSession?.items[0]?.isStale).toBe(true);
+    expect(staleSession?.items[0]?.steps?.[1]?.text).toBe(
+      "I should see the dashboard"
+    );
+
+    await fs.rm(specPath);
+    await app.syncSpecsFromFilesystem();
+    const deletedSpecSession = await app.getExecutionSession(session.id);
+    expect(deletedSpecSession?.items[0]?.isCurrentSpecAvailable).toBe(false);
+    expect(deletedSpecSession?.items[0]?.isStale).toBe(true);
+    expect(deletedSpecSession?.items[0]?.scenarioTitle).toBe(
+      "Login with valid credentials"
+    );
 
     const exported = await app.exportRunResultsNdjson();
     expect(exported.projectId).toBe("qa-console");

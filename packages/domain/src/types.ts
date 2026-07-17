@@ -21,6 +21,15 @@ export interface SpecIdentity {
   stable: boolean;
 }
 
+export interface GitContext {
+  available: boolean;
+  repositoryRoot?: string | undefined;
+  branch?: string | undefined;
+  commitSha?: string | undefined;
+  dirty?: boolean | undefined;
+  capturedAt: string;
+}
+
 export interface SourceLocation {
   line?: number | undefined;
   column?: number | undefined;

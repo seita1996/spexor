@@ -1,0 +1,22 @@
+{
+  "name": "@spexor/git",
+  "version": "0.1.0",
+  "description": "Captures Git repository context for Spexor verification runs.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@spexor/domain": "workspace:*"
+  }
+}
