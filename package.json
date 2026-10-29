@@ -5,15 +5,7 @@
   "description": "Manual spec tracker for Gherkin-based QA workflows.",
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@10.15.1",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "lefthook"
-    ],
-    "overrides": {
-      "shell-quote": "^1.8.4"
-    }
-  },
+  "packageManager": "pnpm@12.16.1",
   "scripts": {
     "dev": "pnpm --filter @spexor/spexor dev",
     "build": "pnpm --filter @spexor/spexor build",

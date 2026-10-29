@@ -2,8 +2,11 @@ packages:
   - apps/*
   - packages/*
 
-onlyBuiltDependencies:
-  - esbuild
-  - lefthook
+allowBuilds:
+  esbuild: true
+  lefthook: true
+
+overrides:
+  shell-quote: ^1.8.4
 
 minimumReleaseAge: 2880
